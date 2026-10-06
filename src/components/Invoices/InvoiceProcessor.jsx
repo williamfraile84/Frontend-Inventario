@@ -32,6 +32,7 @@ import {
   Download,
   RotateCcw,
   Barcode,
+  QrCode,
 } from "lucide-react";
 import {
   invoiceService,
@@ -40,6 +41,7 @@ import {
 } from "../../services/api";
 import { useLoading } from "../../context/LoadingContext";
 import GlobalProfitMarginModal from "../common/GlobalProfitMarginModal";
+import DianQRAssistantModal from "./DianQRAssistantModal";
 
 const normalizeDateInput = (str) => {
   if (!str) return new Date().toISOString().split("T")[0];
@@ -155,8 +157,9 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
   const cameraInputRef = useRef(null);
   const abortControllerRef = useRef(null);
 
-  // OCR Vision Engine Selector: 'auto' (Híbrido), 'server' (PP-OCRv4 Server), 'rapid_table' (SLANet Tablas), 'gemini' (Nube)
+  // OCR Vision Engine Selector: 'auto' (Híbrido), 'server' (PP-OCRv4 Server), 'rapid_table' (SLANet Tablas), 'gemini' (Nube), 'qr_dian' (DIAN QR), 'pdf' (PDF DIAN)
   const [ocrProvider, setOcrProvider] = useState("auto");
+  const [isDianModalOpen, setIsDianModalOpen] = useState(false);
 
   // Global Invoice Controls
   const [isVatIncluded, setIsVatIncluded] = useState(false);
@@ -821,85 +824,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
 
       console.log("Respuesta recibida del backend para la factura:", res);
 
-      if (!res || res.error || (res.success === false && !res.items?.length)) {
-        throw new Error(
-          res?.error || res?.detail || "No se pudo procesar la factura",
-        );
-      }
-
-      setSupplierName(res.proveedor || res.supplier_name || "");
-      setInvoiceNumber(res.numero_factura || res.invoice_number || "");
-      if (res.fecha || res.invoice_date) {
-        setInvoiceDate(normalizeDateInput(res.fecha || res.invoice_date));
-      }
-      setVisionProviderUsed(
-        res.motor_utilizado || res.provider_used || "Local OCR",
-      );
-      setConfidenceScore(res.confidence_score || 0.95);
-
-      const parsed = (res.items || []).map((item, idx) => {
-        const itemTaxes = Array.isArray(item.impuestos)
-          ? item.impuestos.map((t) => {
-              const rawRate = parseFloat(t.tasa ?? t.rate ?? 0);
-              const rate = rawRate > 1 ? rawRate / 100 : rawRate;
-              const fixedVal =
-                parseFloat(t.valor_fijo ?? t.fixed_amount ?? 0) || 0;
-              return {
-                name: t.nombre || t.name || "IVA",
-                rate: rate,
-                fixed_amount: fixedVal,
-              };
-            })
-          : [];
-
-        const qty = parseFloat(item.cantidad) || 1;
-        const unitsPerPack = Math.max(
-          1,
-          parseFloat(item.unidades_por_presentacion) || 1,
-        );
-
-        // Costo de compra unitario por presentación/empaque (e.g. $1.610 por Gansito, $3.537 por Paquete Lecheritas)
-        const presCost =
-          parseFloat(item.precio_unitario) ||
-          (parseFloat(item.subtotal) && qty > 0
-            ? parseFloat(item.subtotal) / qty
-            : 0) ||
-          parseFloat(item.costo_presentacion) ||
-          parseFloat(item.subtotal) ||
-          parseFloat(item.total) ||
-          0;
-
-        return {
-          id: `ocr_item_${idx}_${Date.now()}`,
-          codigo_barras: item.codigo || item.codigo_barras || "",
-          descripcion:
-            item.canonical_name || item.descripcion || item.name || "Producto",
-          canonical_name: item.canonical_name || item.descripcion || "",
-          matched_alias: Boolean(item.matched_alias),
-          cantidad: qty,
-          presentacion: item.presentacion || item.unidad || "UND",
-          unidades_por_presentacion: unitsPerPack,
-          costo_presentacion: presCost,
-          descuento: parseFloat(item.descuento) || 0,
-          subtotal_linea: Math.round(presCost * qty * 100) / 100,
-          impuestos: sanitizeItemTaxes(
-            itemTaxes.length > 0
-              ? itemTaxes
-              : [{ name: "IVA 19%", label: "19%", rate: 0.19, group: "iva" }],
-          ),
-          margen_ganancia: item.margen_ganancia ?? globalMargin,
-          is_manual_margin: false,
-          confidence: item.confianza ?? item.confidence ?? 0.85,
-          create_new_pos_item: !item.matched_pos_item,
-          matched_pos_item: item.matched_pos_item || null,
-        };
-      });
-
-      // Calculate initial row costs with current vat and margin settings
-      const calculatedItems = parsed.map((item) =>
-        recalculateItem(item, isVatIncluded, marginMethod),
-      );
-      setItems(calculatedItems);
+      const calculatedItems = loadInvoiceDataIntoState(res);
 
       onShowToast?.({
         type: "success",
@@ -930,6 +855,110 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
       setIsProcessing(false);
       setProcessingStatusText("");
       hideLoader();
+    }
+  };
+
+  // Helper para cargar datos estructurados de factura al estado (usado por OCR y Asistente DIAN)
+  const loadInvoiceDataIntoState = (data) => {
+    const res = data?.extraction || data;
+    if (!res || res.error || (res.success === false && !res.items?.length)) {
+      throw new Error(
+        res?.error || res?.detail || res?.message || "No se pudo procesar la factura",
+      );
+    }
+
+    setSupplierName(res.proveedor || res.supplier_name || "");
+    setInvoiceNumber(res.numero_factura || res.invoice_number || "");
+    if (res.fecha || res.invoice_date) {
+      setInvoiceDate(normalizeDateInput(res.fecha || res.invoice_date));
+    }
+    setVisionProviderUsed(
+      res.motor_utilizado || res.provider_used || "Local OCR",
+    );
+    setConfidenceScore(res.confidence_score || 0.95);
+
+    const parsed = (res.items || []).map((item, idx) => {
+      const itemTaxes = Array.isArray(item.impuestos)
+        ? item.impuestos.map((t) => {
+            const rawRate = parseFloat(t.tasa ?? t.rate ?? 0);
+            const rate = rawRate > 1 ? rawRate / 100 : rawRate;
+            const fixedVal =
+              parseFloat(t.valor_fijo ?? t.fixed_amount ?? 0) || 0;
+            return {
+              name: t.nombre || t.name || "IVA",
+              rate: rate,
+              fixed_amount: fixedVal,
+            };
+          })
+        : [];
+
+      const qty = parseFloat(item.cantidad) || 1;
+      const unitsPerPack = Math.max(
+        1,
+        parseFloat(item.unidades_por_presentacion) || 1,
+      );
+
+      // Costo de compra unitario por presentación/empaque (e.g. $1.610 por Gansito, $3.537 por Paquete Lecheritas)
+      const presCost =
+        parseFloat(item.precio_unitario) ||
+        (parseFloat(item.subtotal) && qty > 0
+          ? parseFloat(item.subtotal) / qty
+          : 0) ||
+        parseFloat(item.costo_presentacion) ||
+        parseFloat(item.subtotal) ||
+        parseFloat(item.total) ||
+        0;
+
+      return {
+        id: `inv_item_${idx}_${Date.now()}`,
+        codigo_barras: item.codigo || item.codigo_barras || "",
+        descripcion:
+          item.canonical_name || item.descripcion || item.name || "Producto",
+        canonical_name: item.canonical_name || item.descripcion || "",
+        matched_alias: Boolean(item.matched_alias),
+        cantidad: qty,
+        presentacion: item.presentacion || item.unidad || "UND",
+        unidades_por_presentacion: unitsPerPack,
+        costo_presentacion: presCost,
+        descuento: parseFloat(item.descuento) || 0,
+        subtotal_linea: Math.round(presCost * qty * 100) / 100,
+        impuestos: sanitizeItemTaxes(
+          itemTaxes.length > 0
+            ? itemTaxes
+            : [{ name: "IVA 19%", label: "19%", rate: 0.19, group: "iva" }],
+        ),
+        margen_ganancia: item.margen_ganancia ?? globalMargin,
+        is_manual_margin: false,
+        confidence: item.confianza ?? item.confidence ?? 0.85,
+        create_new_pos_item: !item.matched_pos_item,
+        matched_pos_item: item.matched_pos_item || null,
+      };
+    });
+
+    // Calculate initial row costs with current vat and margin settings
+    const calculatedItems = parsed.map((item) =>
+      recalculateItem(item, isVatIncluded, marginMethod),
+    );
+    setItems(calculatedItems);
+    return calculatedItems;
+  };
+
+  // Callback cuando el asistente DIAN QR o PDF oficial extrae datos
+  const handleDianInvoiceExtracted = (dianData) => {
+    try {
+      const calculatedItems = loadInvoiceDataIntoState(dianData);
+      onShowToast?.({
+        type: "success",
+        title: "Factura DIAN Cargada",
+        message: `Se cargaron ${calculatedItems.length} artículos del documento oficial DIAN.`,
+      });
+    } catch (err) {
+      console.error("Error cargando factura DIAN:", err);
+      onShowToast?.({
+        type: "error",
+        title: "Error al Cargar Factura",
+        message: err.message || "No se pudieron procesar los datos de la DIAN.",
+      });
     }
   };
 
@@ -2224,8 +2253,17 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                   )}
                 </label>
 
-                {/* Botones de Cámara y Rotación */}
-                <div className="mt-3 flex gap-2">
+                {/* Botones de Escaneo QR DIAN, Cámara y Rotación */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsDianModalOpen(true)}
+                    className="flex-1 min-w-[140px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-900/30 text-xs font-bold transition cursor-pointer"
+                    title="Escanear Código QR DIAN o Consultar en Catálogo VPFE Oficial"
+                  >
+                    <QrCode className="w-4 h-4 text-white" />
+                    <span>Escanear QR DIAN</span>
+                  </button>
                   <label
                     htmlFor="invoice-camera-input"
                     role="button"
@@ -2235,7 +2273,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                         cameraInputRef.current?.click();
                       }
                     }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition cursor-pointer"
+                    className="flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition cursor-pointer"
                   >
                     <Camera className="w-4 h-4 text-emerald-400" />
                     <span>Tomar Foto</span>
@@ -2283,6 +2321,11 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                       Recomendado (Todos en Uno)
                     </span>
                   )}
+                  {ocrProvider === "qr_dian" && (
+                    <span className="text-[10px] text-blue-400 font-medium px-1.5 py-0.5 rounded bg-blue-950/60 border border-blue-800/50">
+                      Oficial DIAN VPFE
+                    </span>
+                  )}
                 </div>
                 <select
                   value={ocrProvider}
@@ -2291,8 +2334,13 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition cursor-pointer"
                 >
                   <option value="auto">
-                    🌟 Motor Unificado (RapidOCR + RapidTable + PaddleOCR-VL
-                    0.9B + Nube)
+                    🌟 Motor Unificado (RapidOCR + RapidTable + PaddleOCR-VL 0.9B + Nube)
+                  </option>
+                  <option value="qr_dian">
+                    📱 Código QR DIAN / Consulta Oficial VPFE (Máxima Fiabilidad)
+                  </option>
+                  <option value="pdf">
+                    📄 PDF DIAN Digital (Desencriptación con NIT 40327379)
                   </option>
                   <option value="paddle_vl">
                     🧠 PaddleOCR-VL 0.9B ONNX (VLM Local en Proceso)
@@ -2310,6 +2358,10 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                 <p className="text-[10px] text-slate-500 leading-tight">
                   {ocrProvider === "auto" &&
                     "Pipeline unificado cooperativo: velocidad instantánea con RapidOCR Server, rescate automático con PaddleOCR-VL 0.9B ONNX y validación estricta de pricing_engine.py."}
+                  {ocrProvider === "qr_dian" &&
+                    "Lectura de código QR oficial DIAN (resolución 000042) y consulta desatendida en el Catálogo VPFE Oficial con NIT receptor."}
+                  {ocrProvider === "pdf" &&
+                    "Extracción vectorial nativa de PDFs electrónicos oficiales de la DIAN, desencriptando automáticamente con el NIT del receptor en .env (40327379)."}
                   {ocrProvider === "paddle_vl" &&
                     "Document Parsing VLM de 0.9B parámetros ejecutado localmente vía ONNX. Ideal para facturas manuscritas, tickets arrugados o sin tabla."}
                   {ocrProvider === "server" &&
@@ -4755,8 +4807,18 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
             onApplyToNonManual={handleApplyMarginToNonManual}
             onCancel={() => setShowMarginModal(false)}
           />
+
+          {/* Modal Asistente QR DIAN / Catálogo VPFE */}
+          <DianQRAssistantModal
+            isOpen={isDianModalOpen}
+            onClose={() => setIsDianModalOpen(false)}
+            onInvoiceExtracted={handleDianInvoiceExtracted}
+            onShowToast={onShowToast}
+            currentFile={selectedFile}
+          />
         </>
       )}
     </div>
   );
 }
+

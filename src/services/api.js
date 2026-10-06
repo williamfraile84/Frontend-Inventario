@@ -368,6 +368,26 @@ export const invoiceService = {
     });
     return res.data;
   },
+  scanQr: async (file, options = {}) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/invoices/scan-qr", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: options.timeout || 30000,
+      signal: options.signal,
+    });
+    return res.data;
+  },
+  consultDian: async ({ documentKey, nit }, options = {}) => {
+    const res = await api.post("/invoices/consult-dian", {
+      document_key: documentKey,
+      nit: nit || undefined,
+    }, {
+      timeout: options.timeout || 60000,
+      signal: options.signal,
+    });
+    return res.data;
+  },
   calculateCosts: async (items, baseRedondeo = 100) => {
     const res = await api.post("/invoices/calculate-costs", {
       items,
