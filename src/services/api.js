@@ -1,13 +1,33 @@
 import axios from "axios";
 
 // Permite configurar URL de backend independiente en la nube o proxy local de Vite
-const API_BASE = import.meta.env.DEV
-  ? "/api"
-  : import.meta.env.VITE_API_BASE_URL
-    ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, "")
-    : import.meta.env.VITE_API_URL
+const getApiBase = () => {
+  const envBase =
+    import.meta.env.VITE_API_BASE_URL ||
+    (import.meta.env.VITE_API_URL
       ? `${import.meta.env.VITE_API_URL.replace(/\/$/, "")}/api`
-      : "/api";
+      : "");
+
+  // Si estamos en un navegador en otro dispositivo (móvil, red local o túnel Cloudflare/Localtunnel)
+  // pero el build tiene configurado "localhost" o "127.0.0.1", NO debemos intentar llamar al localhost
+  // del móvil, sino usar la ruta relativa "/api" para comunicarse con el servidor que sirvió la app.
+  if (typeof window !== "undefined" && window.location) {
+    const isLocalBrowser =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (
+      !isLocalBrowser &&
+      envBase &&
+      (envBase.includes("localhost") || envBase.includes("127.0.0.1"))
+    ) {
+      return "/api";
+    }
+  }
+
+  return envBase || "/api";
+};
+
+const API_BASE = getApiBase();
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -87,8 +107,10 @@ api.interceptors.response.use(
  */
 export async function checkServerHealth(timeoutMs = 4000) {
   try {
-    const rootUrl = API_BASE.endsWith("/api") ? API_BASE.slice(0, -4) : API_BASE;
-    await axios.get(`${rootUrl}/health`, {
+    const healthUrl = API_BASE.endsWith("/api")
+      ? `${API_BASE}/health`
+      : `${API_BASE.replace(/\/$/, "")}/health`;
+    await axios.get(healthUrl, {
       timeout: timeoutMs,
       isHealthProbe: true,
       headers: { "Cache-Control": "no-cache" },
