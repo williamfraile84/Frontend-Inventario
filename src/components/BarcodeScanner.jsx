@@ -75,7 +75,7 @@ export default function BarcodeScanner({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [scanError, setScanError] = useState(null);
   const [lastDetected, setLastDetected] = useState(null);
-  const [zoomLevel, setZoomLevel] = useState(1.5); // 1x, 1.5x, 2x, 2.5x
+  const [zoomLevel, setZoomLevel] = useState(1); // 1x, 1.5x, 2x, 2.5x
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);

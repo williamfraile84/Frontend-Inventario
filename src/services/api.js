@@ -180,10 +180,14 @@ export const productService = {
     }
     return res.data;
   },
-  searchProducts: async (query) => {
+  searchProducts: async (query = "") => {
     const res = await api.get("/products/search", {
       params: { query },
     });
+    return res.data;
+  },
+  getPosItemDetails: async (itemId) => {
+    const res = await api.get(`/products/csopos/${itemId}`);
     return res.data;
   },
   updateSinglePrice: async ({

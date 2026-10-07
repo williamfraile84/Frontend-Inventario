@@ -99,9 +99,10 @@ export default function DianQRAssistantModal({
           fps: 10,
           qrbox: (viewfinderWidth, viewfinderHeight) => {
             const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const edge = Math.max(50, Math.floor(minEdge * 0.75) || 200);
             return {
-              width: Math.floor(minEdge * 0.75),
-              height: Math.floor(minEdge * 0.75),
+              width: edge,
+              height: edge,
             };
           },
           aspectRatio: 1.0,

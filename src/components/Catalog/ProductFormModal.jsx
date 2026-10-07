@@ -17,11 +17,42 @@ import {
   Search,
   Check,
   ChevronDown,
+  Camera,
 } from "lucide-react";
+import BarcodeScannerModal from "../common/BarcodeScannerModal";
 import { catalogService } from "../../services/api";
 import { formatCurrency } from "../../utils/currency";
 import { redondearCentenaEstricta, calcularMargen } from "../../utils/math";
 import { useLoading } from "../../context/LoadingContext";
+
+function decodeHtml(text) {
+  if (!text || typeof text !== "string") return text || "";
+  if (!text.includes("&")) return text;
+  try {
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const decoded = doc.body.textContent || "";
+    if (decoded.includes("&")) {
+      const doc2 = new DOMParser().parseFromString(decoded, "text/html");
+      return doc2.body.textContent || decoded;
+    }
+    return decoded;
+  } catch {
+    return text
+      .replace(/&Eacute;/g, "É")
+      .replace(/&eacute;/g, "é")
+      .replace(/&Aacute;/g, "Á")
+      .replace(/&aacute;/g, "á")
+      .replace(/&Iacute;/g, "Í")
+      .replace(/&iacute;/g, "í")
+      .replace(/&Oacute;/g, "Ó")
+      .replace(/&oacute;/g, "ó")
+      .replace(/&Uacute;/g, "Ú")
+      .replace(/&uacute;/g, "ú")
+      .replace(/&Ntilde;/g, "Ñ")
+      .replace(/&ntilde;/g, "ñ")
+      .replace(/&amp;/g, "&");
+  }
+}
 
 export default function ProductFormModal({
   isOpen,
@@ -68,6 +99,25 @@ export default function ProductFormModal({
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState(null);
+  const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [scanningTarget, setScanningTarget] = useState("item_number"); // 'item_number' | 'additional'
+
+  const handleBarcodeScanned = (scannedCode) => {
+    if (!scannedCode) return;
+    if (scanningTarget === "item_number") {
+      setFormData((prev) => ({
+        ...prev,
+        item_number: scannedCode,
+      }));
+    } else if (scanningTarget === "additional") {
+      if (!formData.additional_numbers.includes(scannedCode)) {
+        setFormData((prev) => ({
+          ...prev,
+          additional_numbers: [...prev.additional_numbers, scannedCode],
+        }));
+      }
+    }
+  };
 
   // Cargar unidades y departamentos al abrir
   useEffect(() => {
@@ -90,15 +140,15 @@ export default function ProductFormModal({
     if (editingProduct) {
       setFormData({
         item_number: editingProduct.item_number || "",
-        name: editingProduct.name || "",
-        category: editingProduct.category || "",
+        name: decodeHtml(editingProduct.name || ""),
+        category: decodeHtml(editingProduct.category || ""),
         category_code: editingProduct.category_code || "",
         department_code: editingProduct.department_code || "",
         cost_price: String(editingProduct.cost_price ?? ""),
         unit_price: String(editingProduct.unit_price ?? ""),
         unit_code: editingProduct.unit_code || "UN",
         stock_quantity: String(editingProduct.stock_quantity ?? "0"),
-        description: editingProduct.description || "",
+        description: decodeHtml(editingProduct.description || ""),
         profit_percentage: editingProduct.profit_percentage || 30,
         additional_numbers: Array.isArray(editingProduct.additional_numbers)
           ? [...editingProduct.additional_numbers]
@@ -321,6 +371,7 @@ export default function ProductFormModal({
       description: formData.description.trim(),
       profit_percentage: parseFloat(formData.profit_percentage) || 30,
       additional_numbers: formData.additional_numbers,
+      pos_item_id: editingProduct?.pos_item_id || editingProduct?.item_id || undefined,
     };
 
     showLoader({
@@ -434,10 +485,24 @@ export default function ProductFormModal({
 
               {/* UPC/EAN/ISBN (OPCIONAL) */}
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  UPC / EAN / ISBN{" "}
-                  <span className="text-slate-500 font-normal">(Opcional)</span>
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    UPC / EAN / ISBN{" "}
+                    <span className="text-slate-500 font-normal">(Opcional)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScanningTarget("item_number");
+                      setIsBarcodeScannerOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold transition shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                    title="Escanear código de barras con la cámara del dispositivo"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Leer con Cámara</span>
+                  </button>
+                </div>
                 <div className="relative">
                   <input
                     type="text"
@@ -445,11 +510,39 @@ export default function ProductFormModal({
                     onChange={(e) =>
                       setFormData({ ...formData, item_number: e.target.value })
                     }
-                    placeholder="Ej. 7701234567890 (Opcional)"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-white font-mono text-xs focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 outline-none transition"
+                    placeholder="Ej. 7701234567890 (Digita, usa lector USB o lee con cámara)"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 pr-20 text-white font-mono text-xs focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 outline-none transition"
                   />
-                  <Barcode className="w-4 h-4 text-slate-500 absolute right-3 top-3 pointer-events-none" />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                    {formData.item_number && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData({ ...formData, item_number: "" })
+                        }
+                        className="p-1 rounded-md text-slate-500 hover:text-rose-400 transition"
+                        title="Borrar código"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScanningTarget("item_number");
+                        setIsBarcodeScannerOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-emerald-950/80 text-slate-400 hover:text-emerald-400 border border-slate-700/60 hover:border-emerald-500/40 transition"
+                      title="Abrir lector de cámara"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                    </button>
+                    <Barcode className="w-4 h-4 text-slate-500 pointer-events-none mr-1" />
+                  </div>
                 </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Código de barras comercial para venta en caja registradora o báscula POS.
+                </p>
               </div>
             </div>
 
@@ -941,6 +1034,18 @@ export default function ProductFormModal({
               />
               <button
                 type="button"
+                onClick={() => {
+                  setScanningTarget("additional");
+                  setIsBarcodeScannerOpen(true);
+                }}
+                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition"
+                title="Escanear código adicional con la cámara"
+              >
+                <Camera className="w-4 h-4" />
+                <span className="hidden sm:inline">Escanear</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleAddBarcode}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition"
               >
@@ -1081,6 +1186,23 @@ export default function ProductFormModal({
           </div>
         </div>
       )}
+
+      {/* Modal de Escáner de Código de Barras con Cámara */}
+      <BarcodeScannerModal
+        isOpen={isBarcodeScannerOpen}
+        onClose={() => setIsBarcodeScannerOpen(false)}
+        onScan={handleBarcodeScanned}
+        title={
+          scanningTarget === "item_number"
+            ? "Escanear UPC / EAN / ISBN con Cámara"
+            : "Escanear Código de Barras Adicional"
+        }
+        subtitle={
+          scanningTarget === "item_number"
+            ? "Apunta la cámara al código de barras para asignarlo como código principal"
+            : "Apunta la cámara para añadir este código como alternativo"
+        }
+      />
     </div>
   );
 }
