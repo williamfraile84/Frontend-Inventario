@@ -25,11 +25,114 @@ import { redondearCentenaEstricta, calcularMargen } from "../../utils/math";
 import { formatCurrency } from "../../utils/currency";
 import { useLoading } from "../../context/LoadingContext";
 import { decodeHtml } from "../../utils/text";
+import staticCategoriesCatalog from "../../data/categories_catalog.json";
 
-// Caché de metadatos en memoria a nivel de módulo (apertura instantánea 0ms)
-let cachedUnits = null;
-let cachedDepartments = null;
+// Departamentos y categorías estáticas pre-indexadas (apertura y consulta instantánea 0ms)
+const STATIC_DEPARTMENTS = Object.keys(staticCategoriesCatalog || {})
+  .map((code) => ({
+    code,
+    name: staticCategoriesCatalog[code].department_name || code,
+  }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+const DEFAULT_UNITS = [
+  { id: 1, code: "UN", name: "UNIDAD" },
+  { id: 2, code: "KG", name: "KILOGRAMO" },
+  { id: 3, code: "LB", name: "LIBRA" },
+  { id: 4, code: "GR", name: "GRAMO" },
+  { id: 5, code: "PQ", name: "PAQUETE" },
+  { id: 6, code: "AT", name: "ATADO" },
+  { id: 7, code: "MN", name: "MANOJO" },
+  { id: 8, code: "BL", name: "BOLSA" },
+  { id: 9, code: "CJ", name: "CAJA" },
+  { id: 10, code: "CN", name: "CANASTILLA" },
+  { id: 11, code: "MK", name: "MALLA" },
+  { id: 12, code: "BD", name: "BANDEJA" },
+];
+
+let cachedUnits = DEFAULT_UNITS;
+let cachedDepartments = STATIC_DEPARTMENTS;
 const cachedCategoriesByDept = new Map();
+
+// Precarga de categorías locales de los departamentos maestros para respuesta síncrona en 0ms
+if (staticCategoriesCatalog) {
+  for (const depCode of Object.keys(staticCategoriesCatalog)) {
+    const cats = staticCategoriesCatalog[depCode]?.categories;
+    if (Array.isArray(cats) && cats.length > 0) {
+      cachedCategoriesByDept.set(depCode, cats);
+    }
+  }
+}
+
+// Búsqueda local de categorías omnidireccional en memoria (0ms)
+const searchLocalCategories = (searchTerm) => {
+  if (!searchTerm || !staticCategoriesCatalog) return [];
+  const clean = searchTerm.trim().toLowerCase();
+  if (clean.length < 2) return [];
+  const results = [];
+  for (const depCode of Object.keys(staticCategoriesCatalog)) {
+    const dep = staticCategoriesCatalog[depCode];
+    for (const c of dep.categories || []) {
+      const name = (c.name || "").toLowerCase();
+      const code = (c.code || "").toLowerCase();
+      const depName = (
+        c.department_name ||
+        dep.department_name ||
+        ""
+      ).toLowerCase();
+      if (
+        name.includes(clean) ||
+        code === clean ||
+        (clean.length >= 3 && depName.includes(clean))
+      ) {
+        results.push({
+          code: c.code,
+          name: c.name,
+          department_code: c.department_code || depCode,
+          department_name: c.department_name || dep.department_name || "",
+        });
+        if (results.length >= 50) return results;
+      }
+    }
+  }
+  return results;
+};
+
+// Generador de estado inicial sincronizado (0ms)
+const getInitialFormData = (product) => {
+  if (product) {
+    return {
+      item_number: product.item_number || "",
+      name: decodeHtml(product.name || ""),
+      category: decodeHtml(product.category || ""),
+      category_code: product.category_code || "",
+      department_code: product.department_code || "D56",
+      cost_price: String(product.cost_price ?? ""),
+      unit_price: String(product.unit_price ?? ""),
+      unit_code: product.unit_code || "UN",
+      stock_quantity: String(product.stock_quantity ?? "0"),
+      description: decodeHtml(product.description || ""),
+      profit_percentage: product.profit_percentage ?? 30,
+      additional_numbers: Array.isArray(product.additional_numbers)
+        ? [...product.additional_numbers]
+        : [],
+    };
+  }
+  return {
+    item_number: "",
+    name: "",
+    category: "",
+    category_code: "",
+    department_code: "D56",
+    cost_price: "",
+    unit_price: "",
+    unit_code: "UN",
+    stock_quantity: "0",
+    description: "",
+    profit_percentage: 30,
+    additional_numbers: [],
+  };
+};
 
 export default function ProductFormModal({
   isOpen,
@@ -39,25 +142,21 @@ export default function ProductFormModal({
   readOnly = false,
 }) {
   const { showLoader, hideLoader } = useLoading();
-  const [formData, setFormData] = useState({
-    item_number: "",
-    name: "",
-    category: "",
-    category_code: "",
-    department_code: "",
-    cost_price: "",
-    unit_price: "",
-    unit_code: "UN",
-    stock_quantity: "0",
-    description: "",
-    profit_percentage: 30,
-    additional_numbers: [],
-  });
+  const [formData, setFormData] = useState(() =>
+    getInitialFormData(editingProduct)
+  );
 
-  const [units, setUnits] = useState(() => cachedUnits || []);
-  const [departments, setDepartments] = useState(() => cachedDepartments || []);
-  const [selectedDepartment, setSelectedDepartment] = useState("D56");
-  const [departmentCategories, setDepartmentCategories] = useState([]);
+  const [units, setUnits] = useState(() => cachedUnits || DEFAULT_UNITS);
+  const [departments, setDepartments] = useState(
+    () => cachedDepartments || STATIC_DEPARTMENTS
+  );
+  const [selectedDepartment, setSelectedDepartment] = useState(
+    () => editingProduct?.department_code || "D56"
+  );
+  const [departmentCategories, setDepartmentCategories] = useState(() => {
+    const initDept = editingProduct?.department_code || "D56";
+    return cachedCategoriesByDept.get(initDept) || [];
+  });
   const [categoryFilter, setCategoryFilter] = useState("");
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [categoryTab, setCategoryTab] = useState("department"); // 'department' | 'search' | 'manual'
@@ -79,6 +178,21 @@ export default function ProductFormModal({
   const [serverError, setServerError] = useState(null);
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
   const [scanningTarget, setScanningTarget] = useState("item_number"); // 'item_number' | 'additional'
+
+  // Sincronización inmediata cuando se abre o cambia el producto (0ms sin esperas de red)
+  useEffect(() => {
+    if (!isOpen) return;
+    setFormData(getInitialFormData(editingProduct));
+    const targetDept = editingProduct?.department_code || "D56";
+    setSelectedDepartment(targetDept);
+    setDepartmentCategories(cachedCategoriesByDept.get(targetDept) || []);
+    setLoadingCategories(false);
+    setCategoryFilter("");
+    setGlobalSearchTerm("");
+    setGlobalSearchResults([]);
+    setErrors({});
+    setServerError(null);
+  }, [isOpen, editingProduct]);
 
   // Cierre accesible con tecla Escape
   const handleKeyDown = useCallback(
@@ -145,57 +259,7 @@ export default function ProductFormModal({
     loadMeta();
   }, [isOpen]);
 
-  const [prevEditingProduct, setPrevEditingProduct] = useState(editingProduct);
-  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
-
-  if (editingProduct !== prevEditingProduct || isOpen !== prevIsOpen) {
-    setPrevEditingProduct(editingProduct);
-    setPrevIsOpen(isOpen);
-    if (editingProduct) {
-      setFormData({
-        item_number: editingProduct.item_number || "",
-        name: decodeHtml(editingProduct.name || ""),
-        category: decodeHtml(editingProduct.category || ""),
-        category_code: editingProduct.category_code || "",
-        department_code: editingProduct.department_code || "",
-        cost_price: String(editingProduct.cost_price ?? ""),
-        unit_price: String(editingProduct.unit_price ?? ""),
-        unit_code: editingProduct.unit_code || "UN",
-        stock_quantity: String(editingProduct.stock_quantity ?? "0"),
-        description: decodeHtml(editingProduct.description || ""),
-        profit_percentage: editingProduct.profit_percentage || 30,
-        additional_numbers: Array.isArray(editingProduct.additional_numbers)
-          ? [...editingProduct.additional_numbers]
-          : [],
-      });
-      if (editingProduct.department_code) {
-        setSelectedDepartment(editingProduct.department_code);
-      }
-    } else {
-      setFormData({
-        item_number: "",
-        name: "",
-        category: "",
-        category_code: "",
-        department_code: "D56",
-        cost_price: "",
-        unit_price: "",
-        unit_code: "UN",
-        stock_quantity: "0",
-        description: "",
-        profit_percentage: 30,
-        additional_numbers: [],
-      });
-      setSelectedDepartment("D56");
-    }
-    setCategoryFilter("");
-    setGlobalSearchTerm("");
-    setGlobalSearchResults([]);
-    setErrors({});
-    setServerError(null);
-  }
-
-  // Cargar categorías del departamento seleccionado (con caché de 0ms)
+  // Cargar categorías del departamento seleccionado (con catálogo estático y caché de 0ms)
   useEffect(() => {
     if (!isOpen || !selectedDepartment) return;
 
@@ -209,10 +273,13 @@ export default function ProductFormModal({
     const loadDeptCategories = async () => {
       setLoadingCategories(true);
       try {
-        const cats = await catalogService.getCategoriesByDepartment(selectedDepartment);
+        const cats = await catalogService.getCategoriesByDepartment(
+          selectedDepartment
+        );
         if (isCurrent) {
           const resCats = cats || [];
-          if (resCats.length) cachedCategoriesByDept.set(selectedDepartment, resCats);
+          if (resCats.length)
+            cachedCategoriesByDept.set(selectedDepartment, resCats);
           setDepartmentCategories(resCats);
         }
       } catch (err) {
@@ -229,15 +296,21 @@ export default function ProductFormModal({
     };
   }, [isOpen, selectedDepartment]);
 
-  // Búsqueda global de categorías con debounce
+  // Búsqueda global de categorías instantánea en memoria (0ms) con fallback a servidor
   useEffect(() => {
     if (!isOpen || categoryTab !== "search") return;
     const term = (globalSearchTerm || "").trim();
     if (term.length < 2) {
-      const resetTimer = setTimeout(() => {
-        setGlobalSearchResults([]);
-      }, 0);
-      return () => clearTimeout(resetTimer);
+      setGlobalSearchResults([]);
+      return;
+    }
+
+    // 1. Coincidencia inmediata en catálogo local en memoria (0ms)
+    const localMatches = searchLocalCategories(term);
+    if (localMatches.length > 0) {
+      setGlobalSearchResults(localMatches);
+      setIsSearchingGlobal(false);
+      return;
     }
 
     let isCurrent = true;
@@ -253,7 +326,7 @@ export default function ProductFormModal({
       } finally {
         if (isCurrent) setIsSearchingGlobal(false);
       }
-    }, 250);
+    }, 150);
 
     return () => {
       isCurrent = false;
@@ -889,12 +962,30 @@ export default function ProductFormModal({
               )}
 
               {/* CONFIRMACIÓN VISUAL DE CATEGORÍA SELECCIONADA */}
-              <div className="flex items-center justify-between bg-white dark:bg-slate-900/90 border border-emerald-500/30 dark:border-emerald-500/30 rounded-xl px-3.5 py-2.5 text-xs shadow-xs">
+              <div
+                className={`flex items-center justify-between bg-white dark:bg-slate-900/90 border rounded-xl px-3.5 py-2.5 text-xs shadow-xs transition ${
+                  formData.category
+                    ? "border-emerald-500/40 bg-emerald-500/5 dark:bg-emerald-950/20"
+                    : "border-slate-200 dark:border-slate-800"
+                }`}
+              >
                 <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  {formData.category ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  ) : (
+                    <Tag className="w-4 h-4 text-slate-400 shrink-0" />
+                  )}
                   <div>
-                    <span className="text-slate-500 dark:text-slate-400">Categoría Seleccionada: </span>
-                    <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Categoría Seleccionada:{" "}
+                    </span>
+                    <span
+                      className={
+                        formData.category
+                          ? "text-emerald-700 dark:text-emerald-300 font-bold"
+                          : "text-slate-600 dark:text-slate-400 font-semibold"
+                      }
+                    >
                       {formData.category || "Ninguna seleccionada"}
                     </span>
                     {formData.category_code && (
@@ -915,7 +1006,7 @@ export default function ProductFormModal({
                         department_code: "",
                       }))
                     }
-                    className="text-[11px] text-slate-400 hover:text-rose-500 underline transition"
+                    className="text-[11px] text-slate-400 hover:text-rose-500 underline transition cursor-pointer"
                   >
                     Cambiar
                   </button>

@@ -607,6 +607,43 @@ export default function InvoiceReconciliationModal({
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
   const [preparedItemsToApply, setPreparedItemsToApply] = useState([]);
 
+  // Datos memoizados del producto a crear desde la conciliación (apertura instantánea 0ms)
+  const reconciliationEditingProduct = useMemo(() => {
+    if (!createProductTargetItem) return null;
+    return {
+      name:
+        createProductTargetItem.descripcion ||
+        createProductTargetItem.nombre ||
+        "",
+      item_number: "", // Código UPC/EAN/ISBN limpio para que el operario lo ingrese o lea con lector
+      cost_price: String(
+        createProductTargetItem.costo_unitario_neto ||
+          createProductTargetItem.costo_presentacion ||
+          createProductTargetItem.costo_unitario ||
+          ""
+      ),
+      unit_price: String(
+        Math.round(
+          (createProductTargetItem.modo_venta === "paquete"
+            ? createProductTargetItem.precio_venta_paquete
+            : createProductTargetItem.precio_venta_redondeado) ||
+            createProductTargetItem.precio_venta_calculado ||
+            createProductTargetItem.precio_venta ||
+            0
+        )
+      ),
+      unit_code:
+        createProductTargetItem.unidad_pos ||
+        createProductTargetItem.unidad_medida ||
+        "UN",
+      category: "", // Sin categoría preseleccionada: el operario escoge
+      category_code: "",
+      department_code: "D56", // Departamento maestro Fruver por defecto
+      profit_percentage: createProductTargetItem.margen_ganancia || 30,
+      stock_quantity: String(createProductTargetItem.cantidad || "0"),
+    };
+  }, [createProductTargetItem]);
+
   // Función helper precisa para determinar si un código ya pertenece al producto POS
   const isCodeAlreadyOnProduct = useCallback((itemCode, posProduct) => {
     if (!itemCode || itemCode === "S/C" || String(itemCode).trim() === "") {
@@ -1231,30 +1268,7 @@ export default function InvoiceReconciliationModal({
           isOpen={Boolean(createProductTargetItem)}
           onClose={() => setCreateProductTargetItem(null)}
           onSaved={handleProductCreatedFromModal}
-          editingProduct={{
-            name: createProductTargetItem.descripcion || "",
-            item_number: "",
-            cost_price: String(
-              createProductTargetItem.costo_unitario_neto ||
-                createProductTargetItem.costo_presentacion ||
-                ""
-            ),
-            unit_price: String(
-              Math.round(
-                (createProductTargetItem.modo_venta === "paquete"
-                  ? createProductTargetItem.precio_venta_paquete
-                  : createProductTargetItem.precio_venta_redondeado) ||
-                  createProductTargetItem.precio_venta_calculado ||
-                  0
-              )
-            ),
-            unit_code: createProductTargetItem.unidad_pos || "UN",
-            category: "",
-            category_code: "",
-            department_code: "",
-            profit_percentage: createProductTargetItem.margen_ganancia || 30,
-            stock_quantity: String(createProductTargetItem.cantidad || "0"),
-          }}
+          editingProduct={reconciliationEditingProduct}
         />
       )}
     </>
