@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link id="app-manifest" rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="theme-color" content="#10b981" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Fruver POS" />
+    <meta name="description" content="Sistema Inteligente de Gestión de Inventario, Precios y Facturación Electrónica DIAN" />
+    <title>Fruver POS - Gestor Inteligente de Precios e Inventario</title>
+    <script>
+      window.__pwaInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__pwaInstallPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+      });
+      window.addEventListener('appinstalled', function() {
+        window.__pwaInstallPrompt = null;
+        window.dispatchEvent(new CustomEvent('pwa-app-installed'));
+      });
+      // Respaldo de manifiesto PWA resiliente contra túneles remotos (tunnl.gg)
+      (function() {
+        var manifestObj = {
+          name: "Fruver POS - Gestor Inteligente de Precios e Inventario",
+          short_name: "Fruver POS",
+          description: "Sistema Inteligente de Gestión de Inventario, Precios y Facturación Electrónica DIAN",
+          start_url: window.location.origin + "/",
+          scope: window.location.origin + "/",
+          id: window.location.origin + "/",
+          display: "standalone",
+          orientation: "any",
+          theme_color: "#10b981",
+          background_color: "#020617",
+          lang: "es",
+          categories: ["business", "productivity", "utilities"],
+          icons: [
+            { src: window.location.origin + "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: window.location.origin + "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+            { src: window.location.origin + "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: window.location.origin + "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+            { src: window.location.origin + "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+            { src: window.location.origin + "/favicon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }
+          ]
+        };
+        fetch('/manifest.json', { credentials: 'include', cache: 'no-store' })
+          .then(function(res) {
+            var ct = res.headers.get('content-type') || '';
+            if (!res.ok || res.redirected || !ct.includes('json')) {
+              throw new Error('Manifest intercepted');
+            }
+          })
+          .catch(function() {
+            try {
+              var blob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+              var blobUrl = URL.createObjectURL(blob);
+              var linkEl = document.getElementById('app-manifest');
+              if (linkEl) {
+                linkEl.removeAttribute('crossorigin');
+                linkEl.href = blobUrl;
+              }
+            } catch(e) {}
+          });
+      })();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function(reg) {
+            reg.update();
+          })
+          .catch(function(err) {
+            console.warn('Aviso PWA SW:', err);
+          });
+      }
+      (function() {
+        try {
+          var t = localStorage.getItem('fruver_theme');
+          if (t === 'light' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.add('light');
+            document.documentElement.classList.remove('dark');
+            document.documentElement.setAttribute('data-theme', 'light');
+            document.documentElement.style.colorScheme = 'light';
+          } else {
+            document.documentElement.classList.add('dark');
+            document.documentElement.classList.remove('light');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.documentElement.style.colorScheme = 'dark';
+          }
+        } catch(e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

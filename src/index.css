@@ -1,0 +1,837 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+    height: 100%;
+    text-size-adjust: 100%;
+    color-scheme: light dark;
+  }
+
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+    width: 100%;
+  }
+
+  body {
+    @apply font-sans antialiased min-h-screen selection:bg-emerald-500 selection:text-white transition-colors duration-200;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  html.dark body,
+  html[data-theme="dark"] body {
+    background-color: #030712;
+    color: #f8fafc;
+  }
+
+  html.light body,
+  html[data-theme="light"] body {
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  /* Prevenir auto-zoom en inputs en iOS Safari en pantallas táctiles móviles */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px;
+    touch-action: manipulation;
+  }
+
+  @media (min-width: 640px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    select,
+    textarea {
+      font-size: inherit;
+    }
+  }
+
+  /* Números tabulares para alineación precisa de cifras monetarias */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ==============================================================================
+   TOKENS DE DISEÑO Y PALETA VISUAL MODERNA (EMERALD / JADE / OBSIDIAN)
+   ============================================================================== */
+:root {
+  --fruver-brand: #10b981;
+  --fruver-brand-hover: #059669;
+  --fruver-brand-glow: rgba(16, 185, 129, 0.35);
+  --fruver-lime: #84cc16;
+  --fruver-amber: #f59e0b;
+  --fruver-rose: #f43f5e;
+  --fruver-blue: #3b82f6;
+  --fruver-violet: #8b5cf6;
+}
+
+/* Scrollbar personalizado delgado y responsivo */
+.custom-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0a0f1d;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0a0f1d;
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #10b981;
+}
+
+/* Soporte para áreas seguras de pantalla en móviles (iOS Notch & Home Bar) */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* Microinteracciones táctiles y botones responsivos */
+.btn-tactile {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.btn-tactile:active {
+  transform: scale(0.97);
+}
+
+.btn-tactile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #020617, 0 0 0 4px #10b981;
+}
+
+/* Tarjeta contenedora glassmórfica Fruver */
+.card-fruver {
+  background-color: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(51, 65, 85, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 20px 25px -5px rgba(2, 6, 23, 0.5), 0 8px 10px -6px rgba(2, 6, 23, 0.5);
+  border-radius: 1.25rem;
+}
+
+/* Badges semánticos para frutas, verduras y retail */
+.badge-organic {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.badge-citrus {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.badge-berry {
+  background-color: rgba(244, 63, 94, 0.15);
+  color: #fda4af;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.badge-violet {
+  background-color: rgba(139, 92, 246, 0.15);
+  color: #c4b5fd;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+/* Animación del láser del escáner */
+.scanner-laser {
+  animation: scanLaser 2s infinite ease-in-out;
+}
+
+@keyframes scanLaser {
+  0% {
+    top: 5%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 95%;
+    opacity: 1;
+  }
+  100% {
+    top: 5%;
+    opacity: 0.8;
+  }
+}
+
+/* Html5Qrcode container styles */
+#html5-barcode-reader {
+  width: 100% !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+#html5-barcode-reader video {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 0.875rem !important;
+  display: block !important;
+  margin: 0 auto;
+}
+
+#html5-barcode-reader canvas {
+  border-radius: 0.875rem !important;
+}
+
+/* Barra de progreso regresiva en notificaciones Toast */
+@keyframes toast-progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+/* ==============================================================================
+   REGLAS DEL SISTEMA DE TEMA CLARO (HTML.LIGHT)
+   Paleta Retail Moderna, Fresca y de Alto Contraste (Porcelana / Esmeralda / Jade)
+   ============================================================================== */
+html.light {
+  color-scheme: light;
+  --fruver-brand: #059669;
+  --fruver-brand-hover: #047857;
+  --fruver-brand-surface: #ecfdf5;
+  --fruver-brand-border: #a7f3d0;
+  --fruver-brand-text: #065f46;
+  --fruver-lime: #65a30d;
+  --fruver-amber: #d97706;
+  --fruver-rose: #e11d48;
+  --fruver-blue: #2563eb;
+  --fruver-violet: #7c3aed;
+}
+
+html.light body {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* 1. CONTENEDOR PRINCIPAL Y FONDOS DE NIVEL 0 */
+html.light .bg-slate-950 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-950\/95,
+html.light .bg-slate-950\/90,
+html.light .bg-slate-950\/85,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/40 {
+  background-color: #f1f5f9 !important;
+}
+
+/* 2. BARRA DE NAVEGACIÓN Y ENCABEZADOS STICKY */
+html.light header.sticky {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-bottom-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light nav.fixed.bottom-0 {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-top-color: #e2e8f0 !important;
+  box-shadow: 0 -4px 12px 0 rgba(15, 23, 42, 0.05) !important;
+}
+
+html.light nav.fixed.bottom-0 .bg-emerald-600\/20 {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #047857 !important;
+}
+
+html.light nav.fixed.bottom-0 .bg-emerald-600\/20 * {
+  color: #047857 !important;
+}
+
+html.light nav.fixed.bottom-0 .bg-violet-600\/20 {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #6d28d9 !important;
+}
+
+html.light nav.fixed.bottom-0 .bg-violet-600\/20 * {
+  color: #6d28d9 !important;
+}
+
+/* 3. TARJETAS, PANELES Y MODALES (BLANCO PURO CON ELEVACIÓN SUAVE) */
+html.light .bg-slate-900,
+html.light .card-fruver {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.03) !important;
+}
+
+html.light .bg-slate-900\/95,
+html.light .bg-slate-900\/90,
+html.light .bg-slate-900\/85,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/40 {
+  background-color: rgba(255, 255, 255, 0.97) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Fondo de Modales (Backdrop Blur Elegante) */
+html.light .fixed.inset-0.bg-slate-950\/80,
+html.light .fixed.inset-0.bg-slate-950\/85,
+html.light .fixed.inset-0.bg-black\/70,
+html.light .fixed.inset-0.bg-slate-950\/95 {
+  background-color: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Modales Blancos Elevados */
+html.light .fixed.inset-0 > div > .bg-slate-900,
+html.light .fixed.inset-0 .bg-slate-900 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18) !important;
+}
+
+/* 4. ELEMENTOS SECUNDARIOS Y BOTONES NEUTROS (BG-SLATE-800) */
+html.light .bg-slate-800,
+html.light .bg-slate-800\/90,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/70,
+html.light .bg-slate-800\/60,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/40 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Botones secundarios táctiles con fondo blanco y borde */
+html.light button.bg-slate-800,
+html.light button.bg-slate-800\/80,
+html.light button.bg-slate-800\/70 {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light button.bg-slate-800:hover,
+html.light button.bg-slate-800\/80:hover,
+html.light button.bg-slate-800\/70:hover,
+html.light .hover\:bg-slate-800\/40:hover,
+html.light .hover\:bg-slate-800\/60:hover,
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-700:hover {
+  background-color: #f8fafc !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+/* 5. BORDES Y SEPARADORES SUTILES */
+html.light .border-slate-800,
+html.light .border-slate-800\/90,
+html.light .border-slate-800\/80,
+html.light .border-slate-800\/70,
+html.light .border-slate-800\/60,
+html.light .border-slate-800\/50,
+html.light .border-slate-800\/40 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .border-slate-700,
+html.light .border-slate-700\/90,
+html.light .border-slate-700\/80,
+html.light .border-slate-700\/70,
+html.light .border-slate-700\/60,
+html.light .border-slate-700\/50 {
+  border-color: #cbd5e1 !important;
+}
+
+html.light .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-800\/60 > :not([hidden]) ~ :not([hidden]),
+html.light .divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0 !important;
+}
+
+/* 6. INPUTS, SELECTS Y CAMPOS DE TEXTO */
+html.light input[type="text"],
+html.light input[type="number"],
+html.light input[type="email"],
+html.light input[type="password"],
+html.light input[type="search"],
+html.light input[type="date"],
+html.light select,
+html.light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #059669 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15) !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* 7. MAPEO SEMÁNTICO DE BADGES, CHIPS Y ALERTAS (ELIMINACIÓN TOTAL DE RECTÁNGULOS OSCUROS) */
+/* --- EMERALD / VERDE FRUVER / SUCCESS --- */
+html.light .bg-emerald-950,
+html.light .bg-emerald-950\/80,
+html.light .bg-emerald-950\/60,
+html.light .bg-emerald-950\/50,
+html.light .bg-emerald-950\/40,
+html.light .bg-emerald-950\/30,
+html.light .bg-emerald-950\/20,
+html.light .bg-emerald-500\/10,
+html.light .bg-emerald-500\/20,
+html.light .badge-organic {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+  color: #065f46 !important;
+}
+html.light .bg-emerald-950 .text-emerald-300,
+html.light .bg-emerald-950\/80 .text-emerald-300,
+html.light .bg-emerald-950\/60 .text-emerald-300,
+html.light .bg-emerald-950\/50 .text-emerald-300,
+html.light .bg-emerald-950\/30 .text-emerald-300,
+html.light .badge-organic .text-emerald-400 {
+  color: #047857 !important;
+}
+
+/* --- AMBER / CITRUS / WARNING --- */
+html.light .bg-amber-950,
+html.light .bg-amber-950\/80,
+html.light .bg-amber-950\/70,
+html.light .bg-amber-950\/60,
+html.light .bg-amber-950\/50,
+html.light .bg-amber-950\/40,
+html.light .bg-amber-950\/30,
+html.light .bg-amber-500\/10,
+html.light .bg-amber-500\/20,
+html.light .badge-citrus {
+  background-color: #fffbeb !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+html.light .bg-amber-950 .text-amber-200,
+html.light .bg-amber-950 .text-amber-300,
+html.light .bg-amber-950\/60 .text-amber-200,
+html.light .bg-amber-950\/60 .text-amber-300,
+html.light .bg-amber-500\/10 .text-amber-200,
+html.light .bg-amber-500\/10 .text-amber-300,
+html.light .badge-citrus .text-amber-400 {
+  color: #b45309 !important;
+}
+
+/* --- ROSE / RED / BERRY / DANGER --- */
+html.light .bg-rose-950,
+html.light .bg-rose-950\/80,
+html.light .bg-rose-950\/70,
+html.light .bg-rose-950\/60,
+html.light .bg-rose-950\/50,
+html.light .bg-rose-950\/40,
+html.light .bg-rose-500\/10,
+html.light .bg-rose-500\/20,
+html.light .badge-berry {
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+  color: #9f1239 !important;
+}
+html.light .bg-rose-950 .text-rose-200,
+html.light .bg-rose-950 .text-rose-300,
+html.light .bg-rose-950\/60 .text-rose-200,
+html.light .bg-rose-950\/60 .text-rose-300,
+html.light .bg-rose-500\/10 .text-rose-300,
+html.light .badge-berry .text-rose-400 {
+  color: #be123c !important;
+}
+
+/* --- BLUE / SKY / INFO --- */
+html.light .bg-blue-950,
+html.light .bg-blue-950\/60,
+html.light .bg-blue-950\/50,
+html.light .bg-blue-950\/40,
+html.light .bg-sky-950,
+html.light .bg-sky-950\/60 {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #1e40af !important;
+}
+html.light .bg-blue-950 .text-blue-300,
+html.light .bg-blue-950\/50 .text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+/* --- VIOLET / PURPLE / ADMIN --- */
+html.light .bg-violet-950,
+html.light .bg-violet-950\/60,
+html.light .bg-violet-950\/50,
+html.light .bg-purple-950,
+html.light .bg-purple-950\/50,
+html.light .badge-violet {
+  background-color: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+  color: #5b21b6 !important;
+}
+html.light .bg-violet-950 .text-violet-300,
+html.light .bg-violet-950\/50 .text-violet-300,
+html.light .bg-purple-950 .text-purple-300 {
+  color: #6d28d9 !important;
+}
+
+/* --- TEAL / INDIGO --- */
+html.light .bg-teal-950,
+html.light .bg-teal-950\/50 {
+  background-color: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+  color: #0f766e !important;
+}
+html.light .bg-indigo-950,
+html.light .bg-indigo-950\/50 {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+
+/* 8. BANNER DE PRECIO HERO EN PRODUCTCARD */
+html.light .from-emerald-950\/80.to-slate-900\/90,
+html.light .from-emerald-950.to-slate-900 {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%) !important;
+  border: 1.5px solid #86efac !important;
+  box-shadow: 0 4px 14px -2px rgba(5, 150, 105, 0.12) !important;
+}
+html.light .from-emerald-950\/80.to-slate-900\/90 .text-emerald-400,
+html.light .from-emerald-950.to-slate-900 .text-emerald-400 {
+  color: #059669 !important;
+}
+html.light .from-emerald-950\/80.to-slate-900\/90 .text-emerald-300,
+html.light .from-emerald-950.to-slate-900 .text-emerald-300 {
+  color: #047857 !important;
+}
+
+/* 9. JERARQUÍA TIPOGRÁFICA DE ALTO CONTRASTE */
+html.light h1,
+html.light h2,
+html.light h3,
+html.light h4,
+html.light h5,
+html.light h6 {
+  color: #0f172a;
+}
+
+html.light .text-slate-100 {
+  color: #0f172a !important;
+}
+html.light .text-slate-200 {
+  color: #1e293b !important;
+}
+html.light .text-slate-300 {
+  color: #334155 !important;
+}
+html.light .text-slate-400 {
+  color: #475569 !important;
+}
+html.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Contraste adaptativo para colores claros/neón en superficies claras */
+html.light .text-emerald-400:not(button.bg-emerald-600 *):not(button.bg-emerald-500 *):not(.bg-emerald-600 *):not(.bg-emerald-700 *):not([class*="from-emerald-600"] *),
+html.light .text-emerald-300:not(button.bg-emerald-600 *):not(button.bg-emerald-500 *):not(.bg-emerald-600 *):not(.bg-emerald-700 *):not([class*="from-emerald-600"] *) {
+  color: #047857 !important;
+}
+
+html.light .text-amber-400:not(button.bg-amber-600 *):not(button.bg-amber-500 *):not(.bg-amber-600 *):not(.bg-amber-700 *),
+html.light .text-amber-300:not(button.bg-amber-600 *):not(button.bg-amber-500 *):not(.bg-amber-600 *):not(.bg-amber-700 *),
+html.light .text-amber-200:not(button.bg-amber-600 *):not(button.bg-amber-500 *):not(.bg-amber-600 *):not(.bg-amber-700 *) {
+  color: #b45309 !important;
+}
+
+html.light .text-rose-400:not(button.bg-rose-600 *):not(button.bg-rose-500 *):not(.bg-rose-600 *):not(.bg-rose-700 *),
+html.light .text-rose-300:not(button.bg-rose-600 *):not(button.bg-rose-500 *):not(.bg-rose-600 *):not(.bg-rose-700 *),
+html.light .text-rose-200:not(button.bg-rose-600 *):not(button.bg-rose-500 *):not(.bg-rose-600 *):not(.bg-rose-700 *) {
+  color: #be123c !important;
+}
+
+html.light .text-blue-400:not(button.bg-blue-600 *):not(button.bg-blue-500 *):not(.bg-blue-600 *):not(.bg-blue-700 *),
+html.light .text-blue-300:not(button.bg-blue-600 *):not(button.bg-blue-500 *):not(.bg-blue-600 *):not(.bg-blue-700 *),
+html.light .text-sky-400:not(button.bg-sky-600 *):not(button.bg-sky-500 *):not(.bg-sky-600 *),
+html.light .text-sky-300:not(button.bg-sky-600 *):not(button.bg-sky-500 *):not(.bg-sky-600 *) {
+  color: #1d4ed8 !important;
+}
+
+html.light .text-violet-400:not(button.bg-violet-600 *):not(button.bg-violet-500 *):not(.bg-violet-600 *):not(.bg-violet-700 *),
+html.light .text-violet-300:not(button.bg-violet-600 *):not(button.bg-violet-500 *):not(.bg-violet-600 *):not(.bg-violet-700 *),
+html.light .text-purple-400:not(button.bg-purple-600 *):not(button.bg-purple-500 *):not(.bg-purple-600 *):not(.bg-purple-700 *),
+html.light .text-purple-300:not(button.bg-purple-600 *):not(button.bg-purple-500 *):not(.bg-purple-600 *):not(.bg-purple-700 *) {
+  color: #6d28d9 !important;
+}
+
+html.light .text-teal-400:not(button.bg-teal-600 *):not(button.bg-teal-500 *):not(.bg-teal-600 *):not(.bg-teal-700 *),
+html.light .text-teal-300:not(button.bg-teal-600 *):not(button.bg-teal-500 *):not(.bg-teal-600 *):not(.bg-teal-700 *) {
+  color: #0f766e !important;
+}
+
+/* Textos blancos en superficies estándar que deben pasar a oscuro en Modo Claro */
+html.light .text-white:not(button.bg-emerald-600):not(button.bg-emerald-600 *):not(button.bg-emerald-500):not(button.bg-emerald-500 *):not(button.bg-blue-600):not(button.bg-blue-600 *):not(button.bg-rose-600):not(button.bg-rose-600 *):not(button.bg-violet-600):not(button.bg-violet-600 *):not(button.bg-purple-600):not(button.bg-purple-600 *):not(button.bg-teal-600):not(button.bg-teal-600 *):not(button.bg-amber-600):not(button.bg-amber-600 *):not(.bg-emerald-600):not(.bg-emerald-600 *):not(.bg-blue-600):not(.bg-blue-600 *):not(.bg-rose-600):not(.bg-rose-600 *):not(.bg-violet-600):not(.bg-violet-600 *):not(.bg-purple-600):not(.bg-purple-600 *):not(.bg-teal-600):not(.bg-teal-600 *):not([class*="from-"]):not([class*="from-"] *):not(.camera-preview):not(.camera-preview *):not(#html5-barcode-reader):not(#html5-barcode-reader *):not([class*="aspect-"][class*="bg-slate-950"] *) {
+  color: #0f172a !important;
+}
+
+/* Iconos blancos que deben contrastar en oscuro en Modo Claro */
+html.light svg.text-white:not(button.bg-emerald-600 *):not(button.bg-emerald-500 *):not(button.bg-blue-600 *):not(button.bg-rose-600 *):not(button.bg-violet-600 *):not(button.bg-purple-600 *):not(button.bg-teal-600 *):not(button.bg-amber-600 *):not(.bg-emerald-600 *):not(.bg-blue-600 *):not(.bg-rose-600 *):not(.bg-violet-600 *):not(.bg-purple-600 *):not(.bg-teal-600 *):not([class*="from-"] *):not(.camera-preview *):not(#html5-barcode-reader *):not([class*="aspect-"][class*="bg-slate-950"] *) {
+  color: #334155 !important;
+  stroke: #334155 !important;
+}
+
+/* Opciones de select en modo claro */
+html.light option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* Celdas fijas sticky en tablas */
+html.light th.sticky,
+html.light td.sticky {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* PRESERVACIÓN ESTRICTA: SOLO BOTONES DE ACCIÓN CON FONDO SÓLIDO OSCURO CONSERVAN TEXTO BLANCO */
+html.light button.bg-emerald-600:not([class*="/"]):not([class*="dark:"]),
+html.light button.bg-emerald-700:not([class*="/"]):not([class*="dark:"]),
+html.light button.bg-blue-600:not([class*="/"]):not([class*="dark:"]),
+html.light button.bg-rose-600:not([class*="/"]):not([class*="dark:"]),
+html.light button.bg-violet-600:not([class*="/"]):not([class*="dark:"]),
+html.light button.bg-amber-600:not([class*="/"]):not([class*="dark:"]),
+html.light .bg-emerald-600:not([class*="/"]):not([class*="dark:"]):not(nav *),
+html.light .bg-blue-600:not([class*="/"]):not([class*="dark:"]):not(nav *),
+html.light .bg-rose-600:not([class*="/"]):not([class*="dark:"]):not(nav *),
+html.light .bg-violet-600:not([class*="/"]):not([class*="dark:"]):not(nav *),
+html.light [class*="from-emerald-600"]:not([class*="/"]):not([class*="dark:"]),
+html.light [class*="from-violet-600"]:not([class*="/"]):not([class*="dark:"]),
+html.light [class*="from-blue-600"]:not([class*="/"]):not([class*="dark:"]),
+html.light [class*="from-rose-600"]:not([class*="/"]):not([class*="dark:"]) {
+  color: #ffffff !important;
+}
+
+html.light button.bg-emerald-600:not([class*="/"]):not([class*="dark:"]) *,
+html.light button.bg-emerald-700:not([class*="/"]):not([class*="dark:"]) *,
+html.light button.bg-blue-600:not([class*="/"]):not([class*="dark:"]) *,
+html.light button.bg-rose-600:not([class*="/"]):not([class*="dark:"]) *,
+html.light button.bg-violet-600:not([class*="/"]):not([class*="dark:"]) *,
+html.light button.bg-amber-600:not([class*="/"]):not([class*="dark:"]) *,
+html.light .bg-emerald-600:not([class*="/"]):not([class*="dark:"]):not(nav *) *,
+html.light [class*="from-emerald-600"]:not([class*="/"]):not([class*="dark:"]) *,
+html.light [class*="from-violet-600"]:not([class*="/"]):not([class*="dark:"]) * {
+  color: #ffffff !important;
+}
+
+/* BARRAS DE NAVEGACIÓN EN MODO CLARO (ALTO CONTRASTE Y VISIBILIDAD GARANTIZADA) */
+/* 1. Header Desktop Nav */
+html.light header nav button {
+  color: #334155 !important;
+}
+html.light header nav button.bg-emerald-600,
+html.light header nav button.bg-violet-600 {
+  color: #ffffff !important;
+}
+html.light header nav button.bg-emerald-600 *,
+html.light header nav button.bg-violet-600 * {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* 2. Barra de Navegación Móvil Inferior (Bottom Nav) */
+html.light nav.fixed.bottom-0 button {
+  color: #475569 !important;
+}
+html.light nav.fixed.bottom-0 button svg {
+  color: #64748b !important;
+  stroke: #64748b !important;
+}
+html.light nav.fixed.bottom-0 button span {
+  color: #475569 !important;
+}
+html.light nav.fixed.bottom-0 button[class*="bg-emerald"],
+html.light nav.fixed.bottom-0 button.text-emerald-700,
+html.light nav.fixed.bottom-0 button.text-emerald-800 {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+}
+html.light nav.fixed.bottom-0 button[class*="bg-emerald"] *,
+html.light nav.fixed.bottom-0 button.text-emerald-700 *,
+html.light nav.fixed.bottom-0 button.text-emerald-800 * {
+  color: #047857 !important;
+  stroke: #047857 !important;
+}
+html.light nav.fixed.bottom-0 button[class*="bg-violet"],
+html.light nav.fixed.bottom-0 button.text-violet-700,
+html.light nav.fixed.bottom-0 button.text-violet-800 {
+  background-color: #f5f3ff !important;
+  border-color: #c4b5fd !important;
+  color: #6d28d9 !important;
+}
+html.light nav.fixed.bottom-0 button[class*="bg-violet"] *,
+html.light nav.fixed.bottom-0 button.text-violet-700 *,
+html.light nav.fixed.bottom-0 button.text-violet-800 * {
+  color: #6d28d9 !important;
+  stroke: #6d28d9 !important;
+}
+
+/* 3. Botón de Instalación PWA en Modo Claro */
+html.light .pwa-install-btn,
+html.light button[aria-label="Instalar Fruver POS PWA"] {
+  background-color: #ecfdf5 !important;
+  border: 1px solid #6ee7b7 !important;
+  color: #047857 !important;
+}
+html.light .pwa-install-btn *,
+html.light button[aria-label="Instalar Fruver POS PWA"] * {
+  color: #047857 !important;
+  stroke: #047857 !important;
+}
+
+/* 10. EXCEPCIÓN DEL VISOR DE CÁMARA (DEBE MANTENERSE OSCURO PARA VISIÓN DE VÍDEO NÍTIDA) */
+html.light .camera-preview,
+html.light #html5-barcode-reader,
+html.light [class*="aspect-"][class*="bg-slate-950"] {
+  background-color: #020617 !important;
+}
+
+html.light [class*="aspect-"][class*="bg-slate-950"] .bg-slate-950\/85,
+html.light [class*="aspect-"][class*="bg-slate-950"] .bg-slate-950\/80,
+html.light [class*="aspect-"][class*="bg-slate-950"] .bg-slate-900\/90 {
+  background-color: rgba(2, 6, 23, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+html.light [class*="aspect-"][class*="bg-slate-950"] .text-slate-300,
+html.light [class*="aspect-"][class*="bg-slate-950"] .text-slate-400 {
+  color: #cbd5e1 !important;
+}
+
+html.light [class*="aspect-"][class*="bg-slate-950"] .text-white {
+  color: #ffffff !important;
+}
+
+/* 11. CHIPS DE BÚSQUEDA RÁPIDA (FRUTAS Y VERDURAS) */
+html.light .btn-tactile.bg-slate-950 {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .btn-tactile.bg-slate-950:hover {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+}
+
+/* 12. TABLAS EN MODO CLARO */
+html.light thead,
+html.light thead.bg-slate-950\/80 {
+  background-color: #f8fafc !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+html.light thead th {
+  color: #475569 !important;
+  font-weight: 700 !important;
+}
+
+html.light tbody tr {
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+html.light tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* 13. TOASTS EN MODO CLARO */
+html.light [role="alert"].bg-slate-950\/95,
+html.light [role="alert"].bg-slate-900\/95 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.light [role="alert"] h4 {
+  color: #0f172a !important;
+}
+
+html.light [role="alert"] p {
+  color: #334155 !important;
+}
+
+html.light [role="alert"] button {
+  color: #64748b !important;
+}
+
+html.light [role="alert"] button:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* 14. SCROLLBARS EN MODO CLARO */
+html.light .custom-scrollbar {
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+html.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}

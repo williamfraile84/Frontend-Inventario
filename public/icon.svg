@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="fruverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="50%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a3e635" />
+      <stop offset="100%" stop-color="#16a34a" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#10b981" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="508" height="508" x="2" y="2" rx="126" fill="none" stroke="#10b981" stroke-opacity="0.25" stroke-width="4" />
+
+  <path d="M256 120 C256 70, 310 60, 340 70 C340 100, 320 135, 270 140 Z" fill="url(#leafGrad)" />
+  <path d="M256 125 C252 145, 245 165, 235 180" fill="none" stroke="#65a30d" stroke-width="8" stroke-linecap="round" />
+
+  <g filter="url(#glow)">
+    <path d="M256 190 
+             C210 150, 130 150, 110 230 
+             C90 310, 150 410, 220 435 
+             C240 442, 250 435, 256 435 
+             C262 435, 272 442, 292 435 
+             C362 410, 422 310, 402 230 
+             C382 150, 302 150, 256 190 Z" 
+          fill="url(#fruverGrad)" />
+  </g>
+
+  <g fill="#ffffff" fill-opacity="0.85">
+    <rect x="180" y="250" width="10" height="90" rx="5" />
+    <rect x="202" y="250" width="18" height="90" rx="6" />
+    <rect x="232" y="250" width="8"  height="90" rx="4" />
+    <rect x="250" y="250" width="22" height="90" rx="6" />
+    <rect x="282" y="250" width="12" height="90" rx="5" />
+    <rect x="304" y="250" width="24" height="90" rx="6" />
+  </g>
+</svg>
