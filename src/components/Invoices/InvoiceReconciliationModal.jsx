@@ -1233,7 +1233,7 @@ export default function InvoiceReconciliationModal({
           onSaved={handleProductCreatedFromModal}
           editingProduct={{
             name: createProductTargetItem.descripcion || "",
-            item_number: createProductTargetItem.codigo_barras || "",
+            item_number: "",
             cost_price: String(
               createProductTargetItem.costo_unitario_neto ||
                 createProductTargetItem.costo_presentacion ||
@@ -1249,7 +1249,9 @@ export default function InvoiceReconciliationModal({
               )
             ),
             unit_code: createProductTargetItem.unidad_pos || "UN",
-            category: createProductTargetItem.categoria || "FRUVER",
+            category: "",
+            category_code: "",
+            department_code: "",
             profit_percentage: createProductTargetItem.margen_ganancia || 30,
             stock_quantity: String(createProductTargetItem.cantidad || "0"),
           }}

@@ -26,6 +26,11 @@ import { formatCurrency } from "../../utils/currency";
 import { useLoading } from "../../context/LoadingContext";
 import { decodeHtml } from "../../utils/text";
 
+// Caché de metadatos en memoria a nivel de módulo (apertura instantánea 0ms)
+let cachedUnits = null;
+let cachedDepartments = null;
+const cachedCategoriesByDept = new Map();
+
 export default function ProductFormModal({
   isOpen,
   onClose,
@@ -49,8 +54,8 @@ export default function ProductFormModal({
     additional_numbers: [],
   });
 
-  const [units, setUnits] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [units, setUnits] = useState(() => cachedUnits || []);
+  const [departments, setDepartments] = useState(() => cachedDepartments || []);
   const [selectedDepartment, setSelectedDepartment] = useState("D56");
   const [departmentCategories, setDepartmentCategories] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -113,16 +118,24 @@ export default function ProductFormModal({
     }
   };
 
-  // Cargar unidades y departamentos al abrir
+  // Cargar unidades y departamentos al abrir (con caché instantánea de 0ms)
   useEffect(() => {
     if (!isOpen) return;
+
+    if (cachedUnits && cachedDepartments) {
+      setUnits(cachedUnits);
+      setDepartments(cachedDepartments);
+      return;
+    }
 
     const loadMeta = async () => {
       try {
         const [uList, dList] = await Promise.all([
-          catalogService.getUnits().catch(() => []),
-          catalogService.getDepartments().catch(() => []),
+          cachedUnits ? Promise.resolve(cachedUnits) : catalogService.getUnits().catch(() => []),
+          cachedDepartments ? Promise.resolve(cachedDepartments) : catalogService.getDepartments().catch(() => []),
         ]);
+        if (uList && uList.length) cachedUnits = uList;
+        if (dList && dList.length) cachedDepartments = dList;
         setUnits(uList || []);
         setDepartments(dList || []);
       } catch (err) {
@@ -162,7 +175,7 @@ export default function ProductFormModal({
       setFormData({
         item_number: "",
         name: "",
-        category: "Frutas y verduras",
+        category: "",
         category_code: "",
         department_code: "D56",
         cost_price: "",
@@ -182,17 +195,25 @@ export default function ProductFormModal({
     setServerError(null);
   }
 
-  // Cargar categorías del departamento seleccionado
+  // Cargar categorías del departamento seleccionado (con caché de 0ms)
   useEffect(() => {
     if (!isOpen || !selectedDepartment) return;
-    let isCurrent = true;
 
+    if (cachedCategoriesByDept.has(selectedDepartment)) {
+      setDepartmentCategories(cachedCategoriesByDept.get(selectedDepartment));
+      setLoadingCategories(false);
+      return;
+    }
+
+    let isCurrent = true;
     const loadDeptCategories = async () => {
       setLoadingCategories(true);
       try {
         const cats = await catalogService.getCategoriesByDepartment(selectedDepartment);
         if (isCurrent) {
-          setDepartmentCategories(cats || []);
+          const resCats = cats || [];
+          if (resCats.length) cachedCategoriesByDept.set(selectedDepartment, resCats);
+          setDepartmentCategories(resCats);
         }
       } catch (err) {
         console.error("Error cargando categorías de departamento:", err);
