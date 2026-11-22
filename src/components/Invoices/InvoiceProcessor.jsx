@@ -31,6 +31,8 @@ import {
   QrCode,
   Lock,
   AlertCircle,
+  Table,
+  LayoutGrid,
 } from "lucide-react";
 import {
   invoiceService,
@@ -209,6 +211,8 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
 
   const [isApplying, setIsApplying] = useState(false);
   const [isReconciliationModalOpen, setIsReconciliationModalOpen] = useState(false);
+  // Modo de visualización en pantallas medianas y grandes: 'table' (tabla compacta fluida) o 'cards' (tarjetas)
+  const [tableViewMode, setTableViewMode] = useState("table");
 
   // Invoice History State
   const [historyList, setHistoryList] = useState([]);
@@ -605,8 +609,18 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
     const unitDiscount = qty > 0 ? discountValueTotal / qty : discountValueTotal;
 
     // Desglose de costo unitario por presentación con y sin descuento:
-    const costoUnitarioMasDcto = Math.round((presCost + unitDiscount) * 100) / 100;
-    const costoUnitarioMenosDcto = Math.max(0, Math.round((presCost - unitDiscount) * 100) / 100);
+    // Regla de Negocio y Estándar DIAN:
+    // presCost es el precio de lista bruto facturado antes de descuento ($1.811).
+    // - Para el costo neto pagado (- Dcto): se descuenta la oferta comercial: presCost - unitDiscount ($1.684,23).
+    // - Para la base de venta POS (+ Dcto, precio regular sin promo): se toma el precio de lista pleno presCost ($1.811),
+    //   o se adiciona si explícitamente se trata de un recargo comercial (operacion_descuento === "sumar").
+    const isSurcharge = item.operacion_descuento === "sumar";
+    const costoUnitarioMasDcto = isSurcharge
+      ? Math.round((presCost + unitDiscount) * 100) / 100
+      : presCost;
+    const costoUnitarioMenosDcto = isSurcharge
+      ? presCost
+      : Math.max(0, Math.round((presCost - unitDiscount) * 100) / 100);
 
     const margin = parseFloat(item.margen_ganancia) ?? globalMargin;
 
@@ -3271,7 +3285,37 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Selector de Vista: Tabla Compacta vs Tarjetas */}
+                <div className="hidden sm:inline-flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-300 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => setTableViewMode("table")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      tableViewMode === "table"
+                        ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                    title="Vista de Tabla Horizontal Optimizada (se ajusta al 100% de la pantalla)"
+                  >
+                    <Table className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Tabla</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableViewMode("cards")}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      tableViewMode === "cards"
+                        ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 shadow-xs"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                    title="Vista de Tarjetas Verticales Responsivas (sin scroll horizontal)"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                    <span>Tarjetas</span>
+                  </button>
+                </div>
+
                 {(items.length > 0 || supplierName || invoiceNumber) && (
                   <button
                     type="button"
@@ -3316,58 +3360,59 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
             ) : (
               <>
                 {/* 1. VISTA DE TABLA PARA ESCRITORIO (DESKTOP) */}
-                <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800/80 shadow-inner scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 bg-white dark:bg-slate-900/60">
-                  <table className="min-w-[2040px] w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 bg-slate-100 dark:bg-slate-950 z-20 shadow-xs border-b border-slate-200 dark:border-slate-800">
-                      <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-950 text-[11px]">
-                        <th className="p-2.5 w-10 text-center sticky left-0 z-30 bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400">
-                          #
-                        </th>
-                        <th className="p-2.5 min-w-[240px] sticky left-10 z-30 bg-slate-100 dark:bg-slate-950 shadow-[2px_0_5px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.3)] text-slate-700 dark:text-slate-300">
-                          Factura: Producto & Código
-                        </th>
-                        <th className="p-2.5 min-w-[240px]">
-                          Vinculación Catálogo POS
-                        </th>
-                        <th className="p-2.5 min-w-[260px] text-center">
-                          Cant. & Presentación
-                        </th>
-                        <th className="p-2.5 min-w-[160px] text-right">
-                          Costo Unitario
-                        </th>
-                        <th className="p-2.5 min-w-[270px] text-center">
-                          <div className="flex flex-col items-center gap-0.5">
-                            <span>Descuentos / Promos</span>
-                            <span className="text-[9px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
-                              (% y valor en $)
+                {tableViewMode === "table" && (
+                  <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800/80 shadow-xs scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 bg-white dark:bg-slate-900/60">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="sticky top-0 bg-slate-100 dark:bg-slate-950 z-20 shadow-xs border-b border-slate-200 dark:border-slate-800">
+                        <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 uppercase tracking-wider bg-slate-100 dark:bg-slate-950 text-[10px]">
+                          <th className="p-1.5 w-7 text-center sticky left-0 z-30 bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400">
+                            #
+                          </th>
+                          <th className="p-1.5 min-w-[130px] max-w-[170px] sticky left-7 z-30 bg-slate-100 dark:bg-slate-950 shadow-[2px_0_5px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.3)] text-slate-700 dark:text-slate-300">
+                            Factura: Producto & Código
+                          </th>
+                          <th className="p-1.5 min-w-[120px] max-w-[160px]">
+                            Vinculación Catálogo POS
+                          </th>
+                          <th className="p-1.5 min-w-[95px] text-center">
+                            Cant. & Presentación
+                          </th>
+                          <th className="p-1.5 min-w-[85px] text-right">
+                            Costo Unitario
+                          </th>
+                          <th className="p-1.5 min-w-[110px] text-center">
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span>Descuentos / Promos</span>
+                              <span className="text-[8px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
+                                (% y valor en $)
+                              </span>
+                            </div>
+                          </th>
+                          <th className="p-1.5 min-w-[125px] text-center">
+                            Impuestos
+                            <span className="text-[8px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
+                              (IVA / ICO y valor en $)
                             </span>
-                          </div>
-                        </th>
-                        <th className="p-2.5 min-w-[230px] text-center">
-                          Impuestos
-                          <span className="text-[9px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
-                            (IVA / ICO y valor en $)
-                          </span>
-                        </th>
-                        <th className="p-2.5 min-w-[230px] text-right">
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span>Valor Total Compra</span>
-                            <span className="text-[9px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
-                              (Desgloses +/− Descuento)
+                          </th>
+                          <th className="p-1.5 min-w-[120px] text-right">
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span>Valor Total Compra</span>
+                              <span className="text-[8px] font-normal lowercase tracking-normal text-slate-500 dark:text-slate-400 block font-sans">
+                                (Desgloses +/− Descuento)
+                              </span>
+                            </div>
+                          </th>
+                          <th className="p-1.5 min-w-[95px] text-right">
+                            <span>Margen & Precio POS</span>
+                            <span className="text-[8px] font-semibold lowercase tracking-normal text-emerald-600 dark:text-emerald-400 block font-sans">
+                              {marginMethod === "cost"
+                                ? "(markup base + dcto)"
+                                : "(sobre venta)"}
                             </span>
-                          </div>
-                        </th>
-                        <th className="p-2.5 min-w-[175px] text-right">
-                          <span>Margen & Precio POS</span>
-                          <span className="text-[9px] font-semibold lowercase tracking-normal text-emerald-600 dark:text-emerald-400 block font-sans">
-                            {marginMethod === "cost"
-                              ? "(markup base + dcto)"
-                              : "(sobre venta)"}
-                          </span>
-                        </th>
-                        <th className="p-2.5 w-16 text-center">Acciones</th>
-                      </tr>
-                    </thead>
+                          </th>
+                          <th className="p-1 w-12 text-center">Acciones</th>
+                        </tr>
+                      </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
                       {items.map((item, idx) => {
                         const isMultiUnit =
@@ -3404,22 +3449,22 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             className="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition group"
                           >
                             {/* 1. Index */}
-                            <td className="p-2 text-slate-500 font-mono text-center text-xs sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors">
+                            <td className="p-1 w-7 text-slate-500 font-mono text-center text-xs sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors">
                               {idx + 1}
                             </td>
 
                             {/* 2. Factura: Producto & Código (Solo Lectura) */}
-                            <td className="p-2.5 sticky left-10 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
-                              <div className="space-y-1.5 min-w-[220px] max-w-[280px]">
+                            <td className="p-1.5 sticky left-7 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800 transition-colors shadow-[2px_0_5px_rgba(0,0,0,0.06)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.3)]">
+                              <div className="space-y-1 min-w-[130px] max-w-[170px]">
                                 <div
-                                  className="font-semibold text-xs text-slate-900 dark:text-white leading-snug break-words select-text"
+                                  className="font-semibold text-xs text-slate-900 dark:text-white leading-tight break-words select-text line-clamp-2"
                                   title={item.descripcion}
                                 >
                                   {item.descripcion}
                                 </div>
-                                <div className="flex items-center gap-1.5 flex-wrap">
+                                <div className="flex items-center gap-1 flex-wrap">
                                   <span
-                                    className="inline-flex items-center gap-1 font-mono text-[10.5px] text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800"
+                                    className="inline-flex items-center gap-0.5 font-mono text-[9px] text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-950 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-800"
                                     title="Código de barras original de la factura (protegido contra edición)"
                                   >
                                     <Lock className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500 shrink-0" />
@@ -3427,7 +3472,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                   </span>
                                   {item.codigo_dian_unidad && (
                                     <span
-                                      className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-500/15 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[9px] font-bold"
+                                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-blue-500/15 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30 text-[8px] font-bold"
                                       title={item.etiqueta_dian || `Código DIAN: ${item.codigo_dian_unidad} (${item.nombre_dian_unidad || ""})`}
                                     >
                                       DIAN: {item.codigo_dian_unidad}
@@ -3435,10 +3480,10 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                   )}
                                   {item.conversion_requerida && (
                                     <span
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/15 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[9px] font-bold"
+                                      className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-500/15 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30 text-[8px] font-bold"
                                       title={item.conversion_texto}
                                     >
-                                      ⚡ Conv: {item.cantidad} {item.codigo_dian_unidad} ➔ {item.cantidad_inventario_convertida} {item.unidad_pos}
+                                      ⚡ {item.cantidad_inventario_convertida} {item.unidad_pos}
                                     </span>
                                   )}
                                 </div>
@@ -3446,16 +3491,16 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 3. Vinculación Catálogo POS */}
-                            <td className="p-2.5 min-w-[240px] max-w-[320px]">
+                            <td className="p-1.5 min-w-[120px] max-w-[160px]">
                               {item.matched_pos_item ? (
-                                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 space-y-1">
+                                <div className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-200 space-y-0.5">
                                   <div
-                                    className="font-bold text-xs text-slate-900 dark:text-white leading-snug break-words"
+                                    className="font-bold text-xs text-slate-900 dark:text-white leading-tight break-words line-clamp-2"
                                     title={item.matched_pos_item.name}
                                   >
                                     {item.matched_pos_item.name}
                                   </div>
-                                  <div className="flex items-center justify-between text-[10.5px] text-slate-600 dark:text-slate-300 pt-1 border-t border-emerald-200 dark:border-emerald-500/20 font-mono">
+                                  <div className="flex items-center justify-between text-[9px] text-slate-600 dark:text-slate-300 pt-0.5 border-t border-emerald-200 dark:border-emerald-500/20 font-mono">
                                     <span className="text-slate-500 dark:text-slate-400">
                                       PLU: <strong className="text-slate-800 dark:text-slate-200">{item.matched_pos_item.barcode || item.matched_pos_item.item_number || "—"}</strong>
                                     </span>
@@ -3465,27 +3510,27 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 space-y-0.5">
-                                  <div className="flex items-center gap-1.5 text-[11px] font-bold">
-                                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                <div className="p-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-500/30 text-amber-800 dark:text-amber-300 space-y-0.5">
+                                  <div className="flex items-center gap-1 text-[9.5px] font-bold">
+                                    <AlertCircle className="w-3 h-3 text-amber-500 shrink-0" />
                                     <span>Por Conciliar en POS</span>
                                   </div>
-                                  <p className="text-[10px] text-amber-700/80 dark:text-amber-200/70 leading-tight">
+                                  <p className="text-[8.5px] text-amber-700/80 dark:text-amber-200/70 leading-tight">
                                     Vincular o crear nuevo al aplicar
                                   </p>
                                 </div>
                               )}
                             </td>
 
-                            {/* 4. Cant. & Presentación (Espacioso, sin desbordes y alineado) */}
-                            <td className="p-2.5 min-w-[260px]">
-                              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                            {/* 4. Cant. & Presentación */}
+                            <td className="p-1.5 min-w-[95px]">
+                              <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-1">
                                 {/* Fila 1: Cantidad Facturada */}
-                                <div className="flex items-center justify-between gap-1.5 flex-nowrap">
-                                  <span className="text-[9.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
-                                    Cant Fact:
+                                <div className="flex items-center justify-between gap-1">
+                                  <span className="text-[8.5px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider shrink-0">
+                                    Cant:
                                   </span>
-                                  <div className="flex items-center gap-1 shrink-0">
+                                  <div className="flex items-center gap-0.5 shrink-0">
                                     <input
                                       type="number"
                                       step="any"
@@ -3498,64 +3543,57 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           e.target.value,
                                         )
                                       }
-                                      className="w-20 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                                      className="w-12 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
                                       title="Cantidad total comprada en factura"
                                     />
-                                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold shrink-0">
+                                    <span className="text-[8.5px] text-slate-400 font-semibold shrink-0">
                                       fac
                                     </span>
                                   </div>
                                 </div>
 
                                 {/* Fila 2: Empaque / Presentación y Unidades por Empaque */}
-                                <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-slate-200 dark:border-slate-800/60 flex-nowrap">
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-semibold">Tipo:</span>
-                                    <input
-                                      type="text"
-                                      value={item.presentacion}
-                                      onChange={(e) =>
-                                        handleUpdateItem(
-                                          item.id,
-                                          "presentacion",
-                                          e.target.value,
-                                        )
-                                      }
-                                      placeholder="UND"
-                                      className="w-14 uppercase bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-1 py-1 text-[10px] font-bold text-slate-800 dark:text-slate-200 text-center focus:outline-none shrink-0"
-                                      title="Presentación (UND, CAJA, BOLSA, DISPLAY, BULTO...)"
-                                    />
-                                  </div>
-                                  <div className="inline-flex items-center gap-1 shrink-0 bg-slate-100 dark:bg-slate-900 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800">
-                                    <span className="text-slate-400 dark:text-slate-500 text-xs font-bold shrink-0">
-                                      ×
-                                    </span>
-                                    <input
-                                      type="number"
-                                      min="1"
-                                      value={item.unidades_por_presentacion}
-                                      onChange={(e) =>
-                                        handleUpdateItem(
-                                          item.id,
-                                          "unidades_por_presentacion",
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="w-11 text-center bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-[10.5px] font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none shrink-0"
-                                      title="Unidades de inventario dentro de este empaque"
-                                    />
-                                    <span className="text-[10px] text-slate-600 dark:text-slate-300 font-bold shrink-0 whitespace-nowrap">
-                                      und
-                                    </span>
-                                  </div>
+                                <div className="flex items-center justify-between gap-0.5 pt-0.5 border-t border-slate-200 dark:border-slate-800/60">
+                                  <input
+                                    type="text"
+                                    value={item.presentacion}
+                                    onChange={(e) =>
+                                      handleUpdateItem(
+                                        item.id,
+                                        "presentacion",
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="UND"
+                                    className="w-10 uppercase bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-[9px] font-bold text-slate-800 dark:text-slate-200 text-center focus:outline-none shrink-0"
+                                    title="Presentación (UND, CAJA, BOLSA, DISPLAY, BULTO...)"
+                                  />
+                                  <span className="text-slate-400 text-[10px] font-bold shrink-0">×</span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={item.unidades_por_presentacion}
+                                    onChange={(e) =>
+                                      handleUpdateItem(
+                                        item.id,
+                                        "unidades_por_presentacion",
+                                        e.target.value,
+                                      )
+                                    }
+                                    className="w-8 text-center bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded px-0.5 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none shrink-0"
+                                    title="Unidades de inventario dentro de este empaque"
+                                  />
+                                  <span className="text-[8.5px] text-slate-400 font-bold shrink-0">
+                                    und
+                                  </span>
                                 </div>
                               </div>
                             </td>
 
                             {/* 5. Costo Unitario */}
-                            <td className="p-2.5 text-right min-w-[160px]">
-                              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-1.5">
-                                <div className="flex items-center justify-end gap-1">
+                            <td className="p-1.5 text-right min-w-[85px]">
+                              <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-0.5">
+                                <div className="flex items-center justify-end gap-0.5">
                                   <span className="text-slate-400 dark:text-slate-500 text-xs font-semibold">
                                     $
                                   </span>
@@ -3568,11 +3606,11 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                         val,
                                       )
                                     }
-                                    title="Costo de compra unitario por empaque/unidad (formato COP con puntos)"
-                                    className="w-28 text-right bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-2 py-1 text-xs font-mono font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
+                                    title="Costo de compra unitario por empaque/unidad"
+                                    className="w-18 text-right bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded px-1 py-0.5 text-xs font-mono font-bold text-slate-900 dark:text-white focus:border-emerald-500 focus:outline-none"
                                   />
                                 </div>
-                                <div className="flex items-center justify-between text-[9.5px] pt-1 border-t border-slate-200 dark:border-slate-800/60">
+                                <div className="flex items-center justify-between text-[8.5px] pt-0.5 border-t border-slate-200 dark:border-slate-800/60">
                                   <span className="text-slate-500 dark:text-slate-400">
                                     por {item.presentacion || "UND"}
                                   </span>
@@ -3581,7 +3619,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                       className="text-emerald-600 dark:text-emerald-400 font-mono font-bold"
                                       title="Costo neto por unidad individual dentro del empaque"
                                     >
-                                      (${formatCOP(item.costo_unitario_neto || 0)}/und)
+                                      (${formatCOP(item.costo_unitario_neto || 0)}/u)
                                     </span>
                                   )}
                                 </div>
@@ -3589,14 +3627,14 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 6. Descuentos / Promos (% y valor en $, con desglose unitario + / - descuento) */}
-                            <td className="p-2.5 text-center min-w-[270px]">
-                              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-2">
-                                {/* Controles: Solo [ % | $ ] (sin +REC ni -Dcto) */}
-                                <div className="flex items-center justify-between gap-1 flex-nowrap">
-                                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                                    Descuento:
+                            <td className="p-1.5 text-center min-w-[110px]">
+                              <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-1">
+                                {/* Controles: [ % | $ ] */}
+                                <div className="flex items-center justify-between gap-0.5 flex-nowrap">
+                                  <span className="text-[8.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    Dcto:
                                   </span>
-                                  <div className="inline-flex items-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-0.5 text-[9px] font-mono shrink-0">
+                                  <div className="inline-flex items-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-0.5 text-[8px] font-mono shrink-0">
                                     <button
                                       type="button"
                                       onClick={() =>
@@ -3606,7 +3644,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           "porcentaje",
                                         )
                                       }
-                                      className={`px-2.5 py-0.5 rounded transition cursor-pointer font-bold ${
+                                      className={`px-1.5 py-0.5 rounded transition cursor-pointer font-bold ${
                                         item.modo_descuento !== "valor"
                                           ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                                           : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -3624,7 +3662,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           "valor",
                                         )
                                       }
-                                      className={`px-2.5 py-0.5 rounded transition cursor-pointer font-bold ${
+                                      className={`px-1.5 py-0.5 rounded transition cursor-pointer font-bold ${
                                         item.modo_descuento === "valor"
                                           ? "bg-amber-500 text-slate-950 font-black shadow-xs"
                                           : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
@@ -3639,8 +3677,8 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 {/* Fila de Input editable */}
                                 <div className="flex items-center justify-center">
                                   {item.modo_descuento === "valor" ? (
-                                    <div className="flex items-center gap-1 w-full justify-center">
-                                      <span className="text-slate-400 dark:text-slate-500 text-xs font-semibold">$</span>
+                                    <div className="flex items-center gap-0.5 w-full justify-center">
+                                      <span className="text-slate-400 text-xs font-semibold">$</span>
                                       <CurrencyFormattedInput
                                         value={item.descuento_valor || 0}
                                         onChange={(val) =>
@@ -3651,11 +3689,11 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           )
                                         }
                                         title="Valor total de descuento en pesos ($)"
-                                        className="w-32 text-right bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-500/50 text-amber-700 dark:text-amber-300 rounded-lg px-2 py-1 text-xs font-mono font-bold focus:outline-none focus:border-amber-500"
+                                        className="w-18 text-right bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-500/50 text-amber-700 dark:text-amber-300 rounded px-1 py-0.5 text-xs font-mono font-bold focus:outline-none focus:border-amber-500"
                                       />
                                     </div>
                                   ) : (
-                                    <div className="flex items-center justify-center gap-1 w-full">
+                                    <div className="flex items-center justify-center gap-0.5 w-full">
                                       <input
                                         type="number"
                                         step="any"
@@ -3672,40 +3710,40 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                             ),
                                           )
                                         }
-                                        className="w-24 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-amber-600 dark:text-amber-400 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none focus:border-amber-500"
-                                        title="Porcentaje de descuento u oferta comercial (%)"
+                                        className="w-12 text-center bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-amber-600 dark:text-amber-400 rounded px-1 py-0.5 text-xs font-bold focus:outline-none focus:border-amber-500"
+                                        title="Porcentaje de descuento comercial (%)"
                                       />
-                                      <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">%</span>
+                                      <span className="text-[10px] text-slate-500 font-bold">%</span>
                                     </div>
                                   )}
                                 </div>
 
                                 {/* Desglose estructurado de tasa y valores unitarios */}
-                                <div className="w-full text-right space-y-1 pt-1.5 border-t border-slate-200 dark:border-slate-800/60 font-mono text-[9.5px]">
-                                  <div className="flex justify-between items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                                    <span className="text-[8.5px] uppercase font-sans font-semibold">Tasa & Monto:</span>
+                                <div className="w-full text-right space-y-0.5 pt-0.5 border-t border-slate-200 dark:border-slate-800/60 font-mono text-[8px]">
+                                  <div className="flex justify-between items-center gap-1 text-slate-600 dark:text-slate-400">
+                                    <span className="text-[7.5px] uppercase font-sans font-semibold">Tasa & Monto:</span>
                                     <span className="font-semibold text-amber-600 dark:text-amber-400">
-                                      {(item.descuento_porcentaje || item.descuento || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 })}%
+                                      {(item.descuento_porcentaje || item.descuento || 0).toLocaleString("es-CO", { maximumFractionDigits: 1 })}%
                                       {" · "}
                                       ${Math.round(item.descuento_valor || 0).toLocaleString("es-CO")}
                                     </span>
                                   </div>
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-emerald-600 dark:text-emerald-400"
-                                    title="Costo unitario sumando el descuento (base regular sin promoción para el POS)"
+                                    className="flex justify-between items-center gap-1 text-emerald-600 dark:text-emerald-400"
+                                    title="Costo unitario regular sin promoción para el POS"
                                   >
-                                    <span className="text-[8.5px] uppercase font-sans font-bold">+ Descuento:</span>
+                                    <span className="text-[7.5px] uppercase font-sans font-bold">+ Descuento:</span>
                                     <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                                      ${(item.costo_unitario_mas_descuento || (item.costo_presentacion + (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                                      ${(item.costo_unitario_mas_descuento ?? item.costo_presentacion ?? 0).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-slate-600 dark:text-slate-400"
+                                    className="flex justify-between items-center gap-1 text-slate-600 dark:text-slate-400"
                                     title="Costo unitario descontando el descuento (costo neto pagado en factura)"
                                   >
-                                    <span className="text-[8.5px] uppercase font-sans font-semibold">− Descuento:</span>
+                                    <span className="text-[7.5px] uppercase font-sans font-semibold">− Descuento:</span>
                                     <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                      ${(item.costo_unitario_menos_descuento || Math.max(0, item.costo_presentacion - (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                                      ${(item.costo_unitario_menos_descuento ?? Math.max(0, item.costo_presentacion - (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                                     </span>
                                   </div>
                                 </div>
@@ -3713,14 +3751,14 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 7. Impuestos (IVA / ICO y valores individuales) */}
-                            <td className="p-2.5 min-w-[230px]">
-                              <div className="flex flex-col gap-1.5">
+                            <td className="p-1.5 min-w-[125px]">
+                              <div className="flex flex-col gap-1">
                                 {/* 1. IVA (0%, 5%, 19%) */}
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-8 shrink-0">
+                                  <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-6 shrink-0">
                                     IVA
                                   </span>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-0.5">
                                     {TAX_OPTIONS_IVA.map((tax) => {
                                       const active = isTaxActive(item, tax);
                                       return (
@@ -3730,7 +3768,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           onClick={() =>
                                             handleToggleItemTax(item.id, tax)
                                           }
-                                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                                          className={`px-1 py-0.5 rounded text-[9px] font-bold transition cursor-pointer ${
                                             active
                                               ? "bg-emerald-500 text-slate-950 font-black shadow-xs ring-1 ring-emerald-300"
                                               : "bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
@@ -3747,12 +3785,12 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 {/* 2. ICUI (Comestibles Ultraprocesados: 10%, 15%, 20%) */}
                                 <div className="flex items-center justify-between gap-1">
                                   <span
-                                    className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider w-8 shrink-0"
+                                    className="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider w-6 shrink-0"
                                     title="Impuesto a Ultraprocesados (ICUI: 10%, 15%, 20%)"
                                   >
                                     ICUI
                                   </span>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-0.5">
                                     {TAX_OPTIONS_ICUI.map((tax) => {
                                       const active = isTaxActive(item, tax);
                                       return (
@@ -3762,7 +3800,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           onClick={() =>
                                             handleToggleItemTax(item.id, tax)
                                           }
-                                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition cursor-pointer ${
+                                          className={`px-1 py-0.5 rounded text-[9px] font-bold transition cursor-pointer ${
                                             active
                                               ? "bg-amber-400 text-slate-950 font-black shadow-xs ring-1 ring-amber-300"
                                               : "bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
@@ -3777,8 +3815,8 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 </div>
 
                                 {/* 3. INC (8%), Licores (IPO 20%, 25%) y + Otro */}
-                                <div className="flex items-center justify-between gap-1">
-                                  <div className="flex items-center gap-1">
+                                <div className="flex items-center justify-between gap-0.5 flex-wrap">
+                                  <div className="flex items-center gap-0.5 flex-wrap">
                                     {TAX_OPTIONS_INC.map((tax) => {
                                       const active = isTaxActive(item, tax);
                                       return (
@@ -3788,7 +3826,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           onClick={() =>
                                             handleToggleItemTax(item.id, tax)
                                           }
-                                          className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold transition cursor-pointer ${
+                                          className={`px-1 py-0.5 rounded text-[8.5px] font-bold transition cursor-pointer ${
                                             active
                                               ? "bg-sky-400 text-slate-950 font-black shadow-xs ring-1 ring-sky-300"
                                               : "bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
@@ -3808,7 +3846,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           onClick={() =>
                                             handleToggleItemTax(item.id, tax)
                                           }
-                                          className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold transition cursor-pointer ${
+                                          className={`px-1 py-0.5 rounded text-[8.5px] font-bold transition cursor-pointer ${
                                             active
                                               ? "bg-purple-500 text-white font-black shadow-xs ring-1 ring-purple-300"
                                               : "bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800"
@@ -3825,7 +3863,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                     onClick={() =>
                                       handleOpenCustomTaxModal(item)
                                     }
-                                    className="text-[9px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700/80 transition cursor-pointer shrink-0"
+                                    className="text-[8px] font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 px-1 py-0.5 rounded border border-slate-300 dark:border-slate-700/80 transition cursor-pointer shrink-0"
                                     title="Configurar otros impuestos personalizados o fijos en $"
                                   >
                                     + Otro
@@ -3834,11 +3872,11 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
 
                                 {/* Chips de impuestos personalizados activos */}
                                 {customTaxes.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
+                                  <div className="flex flex-wrap gap-0.5">
                                     {customTaxes.map((ct, cIdx) => (
                                       <span
                                         key={cIdx}
-                                        className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/15 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-500/40 font-semibold"
+                                        className="inline-flex items-center gap-0.5 text-[8px] px-1 py-0.5 rounded bg-indigo-500/15 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-500/40 font-semibold"
                                       >
                                         <span>{ct.name}</span>
                                         <button
@@ -3857,7 +3895,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 )}
 
                                 {/* Desglose exacto en pesos ($) de cada impuesto aplicado */}
-                                <div className="w-full bg-slate-50 dark:bg-slate-950/90 rounded border border-slate-200 dark:border-slate-800/80 p-1.5 text-[9.5px] font-mono space-y-0.5">
+                                <div className="w-full bg-slate-50 dark:bg-slate-950/90 rounded border border-slate-200 dark:border-slate-800/80 p-1 text-[8.5px] font-mono space-y-0.5">
                                   {(detailedTaxes.length > 0
                                     ? detailedTaxes
                                     : [
@@ -3906,14 +3944,14 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 8. Valor Total Compra (con los 4 desgloses solicitados) */}
-                            <td className="p-2.5 text-right min-w-[240px]">
-                              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-2">
+                            <td className="p-1.5 text-right min-w-[120px]">
+                              <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800/80 space-y-1">
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                                    Total Compra:
+                                  <span className="text-[8.5px] font-bold text-slate-500 uppercase tracking-wider">
+                                    Total:
                                   </span>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-slate-400 dark:text-slate-500 text-xs font-semibold">
+                                  <div className="flex items-center gap-0.5">
+                                    <span className="text-slate-400 text-xs font-semibold">
                                       $
                                     </span>
                                     <CurrencyFormattedInput
@@ -3929,48 +3967,48 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                         handleUpdateValorCompra(item.id, val)
                                       }
                                       title="Valor total de compra facturado (editable: auto-calcula costo unitario)"
-                                      className="w-28 text-right bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-mono font-bold text-teal-700 dark:text-teal-300 focus:border-teal-400 focus:outline-none"
+                                      className="w-18 text-right bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1 py-0.5 text-xs font-mono font-bold text-teal-700 dark:text-teal-300 focus:border-teal-400 focus:outline-none"
                                     />
                                   </div>
                                 </div>
 
                                 {/* Desglose exacto de los 4 desgloses solicitados por el usuario */}
-                                <div className="w-full text-right space-y-1 pt-1.5 border-t border-slate-200 dark:border-slate-800/60 font-mono text-[9px]">
+                                <div className="w-full text-right space-y-0.5 pt-0.5 border-t border-slate-200 dark:border-slate-800/60 font-mono text-[8px]">
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-emerald-600 dark:text-emerald-400"
+                                    className="flex justify-between items-center gap-1 text-emerald-600 dark:text-emerald-400"
                                     title="Total con impuestos sumando el descuento"
                                   >
-                                    <span className="text-[8px] uppercase font-sans font-bold">Con Imp + Dcto:</span>
+                                    <span className="text-[7.5px] uppercase font-sans font-bold">Con Imp + Dcto:</span>
                                     <span className="font-bold text-emerald-700 dark:text-emerald-300">
                                       ${Math.round(item.total_con_impuestos_mas_descuento ?? (item.valor_compra_con_impuestos || 0)).toLocaleString("es-CO")}
                                     </span>
                                   </div>
 
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-slate-700 dark:text-slate-300"
+                                    className="flex justify-between items-center gap-1 text-slate-700 dark:text-slate-300"
                                     title="Total con impuestos descontando el descuento (neto a pagar en factura)"
                                   >
-                                    <span className="text-[8px] uppercase font-sans font-semibold">Con Imp − Dcto:</span>
+                                    <span className="text-[7.5px] uppercase font-sans font-semibold">Con Imp − Dcto:</span>
                                     <span className="font-bold text-slate-900 dark:text-white">
                                       ${Math.round(item.total_con_impuestos_menos_descuento ?? (item.valor_compra_con_impuestos || 0)).toLocaleString("es-CO")}
                                     </span>
                                   </div>
 
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-slate-500 dark:text-slate-400"
+                                    className="flex justify-between items-center gap-1 text-slate-500 dark:text-slate-400"
                                     title="Subtotal sin impuestos sumando el descuento"
                                   >
-                                    <span className="text-[8px] uppercase font-sans">Sin Imp + Dcto:</span>
+                                    <span className="text-[7.5px] uppercase font-sans">Sin Imp + Dcto:</span>
                                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                                       ${Math.round(item.total_sin_impuestos_mas_descuento ?? (item.valor_compra_sin_impuestos || 0)).toLocaleString("es-CO")}
                                     </span>
                                   </div>
 
                                   <div
-                                    className="flex justify-between items-center gap-1.5 text-slate-500 dark:text-slate-400"
+                                    className="flex justify-between items-center gap-1 text-slate-500 dark:text-slate-400"
                                     title="Subtotal sin impuestos descontando el descuento"
                                   >
-                                    <span className="text-[8px] uppercase font-sans">Sin Imp − Dcto:</span>
+                                    <span className="text-[7.5px] uppercase font-sans">Sin Imp − Dcto:</span>
                                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                                       ${Math.round(item.total_sin_impuestos_menos_descuento ?? (item.valor_compra_sin_impuestos || 0)).toLocaleString("es-CO")}
                                     </span>
@@ -3980,23 +4018,23 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 10. Margen & Precio POS */}
-                            <td className="p-2.5 text-right min-w-[165px]">
+                            <td className="p-1.5 text-right min-w-[95px]">
                               <div className="flex flex-col items-end gap-1">
                                 {/* Margen % */}
-                                <div className="flex items-center justify-end gap-1">
+                                <div className="flex items-center justify-end gap-0.5">
                                   {item.is_manual_margin && (
                                     <button
                                       type="button"
                                       onClick={() =>
                                         handleResetItemMargin(item.id)
                                       }
-                                      className="text-[9px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 dark:bg-amber-950/80 px-1 py-0.5 rounded border border-amber-500/40 hover:bg-amber-500/25 dark:hover:bg-amber-900/80 transition cursor-pointer"
+                                      className="text-[7.5px] font-bold text-amber-700 dark:text-amber-300 bg-amber-500/15 dark:bg-amber-950/80 px-1 py-0.5 rounded border border-amber-500/40 hover:bg-amber-500/25 transition cursor-pointer"
                                       title="Margen editado manualmente. Clic para restablecer al margen global"
                                     >
-                                      Manual ↺
+                                      ↺
                                     </button>
                                   )}
-                                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                                  <span className="text-[8.5px] text-slate-500 font-medium">
                                     Margen:
                                   </span>
                                   <input
@@ -4011,13 +4049,13 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                         e.target.value,
                                       )
                                     }
-                                    className={`w-11 text-center bg-white dark:bg-slate-950 border rounded py-0.5 text-xs font-bold focus:outline-none ${
+                                    className={`w-9 text-center bg-white dark:bg-slate-950 border rounded py-0.5 text-xs font-bold focus:outline-none ${
                                       item.is_manual_margin
                                         ? "border-amber-400 dark:border-amber-500/60 text-amber-700 dark:text-amber-300"
                                         : "border-slate-300 dark:border-slate-800 text-emerald-600 dark:text-emerald-400"
                                     }`}
                                   />
-                                  <span className="text-[10px] text-slate-400">
+                                  <span className="text-[8.5px] text-slate-400">
                                     %
                                   </span>
                                 </div>
@@ -4025,7 +4063,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 {/* Modo de venta y precio */}
                                 {isMultiUnit ? (
                                   <div className="flex flex-col items-end gap-0.5">
-                                    <div className="inline-flex rounded-lg bg-slate-100 dark:bg-slate-950 p-0.5 border border-slate-200 dark:border-slate-800 text-[10px] font-bold">
+                                    <div className="inline-flex rounded bg-slate-100 dark:bg-slate-950 p-0.5 border border-slate-200 dark:border-slate-800 text-[8.5px] font-bold">
                                       <button
                                         type="button"
                                         onClick={() =>
@@ -4035,10 +4073,10 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                             "unidad",
                                           )
                                         }
-                                        className={`px-2 py-0.5 rounded transition ${
+                                        className={`px-1 py-0.5 rounded transition ${
                                           item.modo_venta !== "paquete"
                                             ? "bg-emerald-600 text-white shadow-xs"
-                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                                            : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                                         }`}
                                         title={`Vender por unidad: $${Number(item.precio_venta_unidad || 0).toLocaleString("es-CO")}`}
                                       >
@@ -4053,17 +4091,17 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                             "paquete",
                                           )
                                         }
-                                        className={`px-2 py-0.5 rounded transition ${
+                                        className={`px-1 py-0.5 rounded transition ${
                                           item.modo_venta === "paquete"
                                             ? "bg-teal-600 text-white shadow-xs"
-                                            : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                                            : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
                                         }`}
                                         title={`Vender por paquete: $${Number(item.precio_venta_paquete || 0).toLocaleString("es-CO")}`}
                                       >
                                         {item.presentacion || "Pqte"}
                                       </button>
                                     </div>
-                                    <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 block">
+                                    <span className="font-mono font-black text-xs text-emerald-600 dark:text-emerald-400 block">
                                       $
                                       {Number(
                                         (item.modo_venta === "paquete"
@@ -4075,7 +4113,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                   </div>
                                 ) : (
                                   <div className="text-right">
-                                    <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 block">
+                                    <span className="font-mono font-black text-xs text-emerald-600 dark:text-emerald-400 block">
                                       $
                                       {Number(
                                         item.precio_venta_unidad ||
@@ -4083,7 +4121,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                           0,
                                       ).toLocaleString("es-CO")}
                                     </span>
-                                    <span className="text-[9.5px] text-slate-400 dark:text-slate-500 block">
+                                    <span className="text-[8.5px] text-slate-400 dark:text-slate-500 block">
                                       Exac: $
                                       {Number(
                                         item.precio_venta_calculado || 0,
@@ -4095,14 +4133,14 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                             </td>
 
                             {/* 11. Acciones */}
-                            <td className="p-2.5 text-center">
-                              <div className="flex items-center justify-center gap-1">
+                            <td className="p-1 text-center w-12">
+                              <div className="flex items-center justify-center gap-0.5">
                                 <button
                                   type="button"
                                   onClick={() =>
                                     setSelectedItemForBreakdown(item)
                                   }
-                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
+                                  className="p-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                                   title="Ver fórmula y desglose matemático"
                                 >
                                   <Eye className="w-3.5 h-3.5" />
@@ -4110,7 +4148,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveItem(item.id)}
-                                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950/60 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-300 transition cursor-pointer"
+                                  className="p-1 rounded bg-slate-100 hover:bg-rose-100 dark:bg-slate-800 dark:hover:bg-rose-950/60 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-300 transition cursor-pointer"
                                   title="Eliminar fila"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -4123,9 +4161,10 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                     </tbody>
                   </table>
                 </div>
+              )}
 
-                {/* 2. VISTA DE TARJETAS FLUIDAS PARA MÓVILES Y TABLETS */}
-                <div className="block lg:hidden divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xl mt-3 lg:mt-0">
+                {/* 2. VISTA DE TARJETAS FLUIDAS (MÓVILES, TABLETS O CUANDO SE ELIGE MODO TARJETAS EN DESKTOP) */}
+                <div className={`${tableViewMode === "cards" ? "block" : "block lg:hidden"} divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/60 overflow-hidden shadow-xl mt-3 lg:mt-0`}>
                   {items.map((item, idx) => {
                     const isMultiUnit =
                       parseFloat(item.unidades_por_presentacion) > 1;
@@ -4465,11 +4504,11 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                               </div>
                               <div
                                 className="flex items-center justify-between text-emerald-600 dark:text-emerald-400"
-                                title="Costo unitario sumando el descuento (base regular de venta para POS)"
+                                title="Costo unitario regular sin promoción para el POS"
                               >
                                 <span className="font-sans font-bold">+ Descuento:</span>
                                 <span className="font-bold text-emerald-700 dark:text-emerald-300">
-                                  ${(item.costo_unitario_mas_descuento || (item.costo_presentacion + (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                                  ${(item.costo_unitario_mas_descuento ?? item.costo_presentacion ?? 0).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                               <div
@@ -4478,7 +4517,7 @@ export default function InvoiceProcessor({ onShowToast, isTvMode = false }) {
                               >
                                 <span className="font-sans font-semibold">− Descuento:</span>
                                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                  ${(item.costo_unitario_menos_descuento || Math.max(0, item.costo_presentacion - (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
+                                  ${(item.costo_unitario_menos_descuento ?? Math.max(0, item.costo_presentacion - (item.descuento_unitario || 0))).toLocaleString("es-CO", { minimumFractionDigits: 1, maximumFractionDigits: 2 })}
                                 </span>
                               </div>
                             </div>

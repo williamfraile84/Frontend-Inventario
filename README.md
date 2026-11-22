@@ -167,8 +167,8 @@ fruver-pos-frontend/
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone https://github.com/tu-usuario/fruver-pos-frontend.git
-cd fruver-pos-frontend
+git clone https://github.com/williamfraile84/Frontend-Inventario.git
+cd Frontend-Inventario
 ```
 
 ### 2. Instalar Dependencias

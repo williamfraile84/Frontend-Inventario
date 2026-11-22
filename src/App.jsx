@@ -429,8 +429,12 @@ function AppContent() {
 
       {/* Main Content Body */}
       <main
-        className={`flex-1 w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 md:pb-8 ${
-          isTvMode ? "max-w-[1800px]" : "max-w-7xl"
+        className={`flex-1 w-full mx-auto py-4 sm:py-6 pb-24 md:pb-8 ${
+          isTvMode
+            ? "max-w-[1800px] px-3 sm:px-6 lg:px-8"
+            : activeTab === "invoices"
+            ? "max-w-[1850px] px-2 sm:px-4 lg:px-6"
+            : "max-w-7xl px-3 sm:px-6 lg:px-8"
         }`}
       >
         {/* TAB 1: CONSULTA Y EDICIÓN INDIVIDUAL (KEEP-ALIVE) */}

@@ -163,14 +163,16 @@ export default function DianQRAssistantModal({
       let total = 0;
 
       // 1. Buscar DocumentKey en URL (searchqr?documentkey=... o SearchDocument?DocumentKey=...)
-      const urlDocKeyMatch = text.match(/[?&]documentkey=([a-fA-F0-9]{64,128})/i) || text.match(/DocumentKey=([a-fA-F0-9]{64,128})/i);
+      const urlDocKeyMatch = text.match(/[?&]documentkey=([a-fA-F0-9\s\r\n\t]{64,128})/i) || text.match(/DocumentKey=([a-fA-F0-9\s\r\n\t]{64,128})/i);
       if (urlDocKeyMatch) {
-        cufe = urlDocKeyMatch[1].toLowerCase();
+        cufe = urlDocKeyMatch[1].replace(/[^a-fA-F0-9]/g, "").toLowerCase();
       }
 
       // 2. Si no hay DocumentKey en URL, buscar CUFE hexadecimal directo (64 a 100 caracteres)
+      // Limpiamos saltos de línea (\r, \n), espacios y etiquetas para no romper CUFEs multilínea de PDFs
       if (!cufe) {
-        const cufeDirectMatch = text.match(/\b([a-fA-F0-9]{64,100})\b/) || text.match(/([a-fA-F0-9]{64,100})/);
+        const stripped = text.replace(/cufe\s*[:=\s]|cude\s*[:=\s]/gi, "").replace(/[^a-fA-F0-9]/g, "");
+        const cufeDirectMatch = stripped.match(/([a-fA-F0-9]{64,100})/);
         if (cufeDirectMatch) {
           cufe = cufeDirectMatch[1].toLowerCase();
         }
@@ -821,8 +823,10 @@ export default function DianQRAssistantModal({
 
     let parsed = parseDianQrText(clean);
     // Si no detectó cufe como URL pero el string contiene entre 64 y 100 caracteres hex, es un CUFE directo
+    // Limpiamos espacios y saltos de línea (\r, \n) para no fallar con CUFEs copiados de PDFs
     if (!parsed.cufe) {
-      const hexMatch = clean.match(/([a-fA-F0-9]{64,100})/);
+      const stripped = clean.replace(/cufe\s*[:=\s]|cude\s*[:=\s]/gi, "").replace(/[^a-fA-F0-9]/g, "");
+      const hexMatch = stripped.match(/([a-fA-F0-9]{64,100})/);
       if (hexMatch) {
         parsed.cufe = hexMatch[1].toLowerCase();
         parsed.dianUrl = `https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=${parsed.cufe}`;
@@ -1279,18 +1283,29 @@ export default function DianQRAssistantModal({
                             clipText = window.prompt("Pega aquí el código CUFE (96 caracteres) o enlace oficial DIAN:");
                           }
                           if (clipText) {
-                            const trimmed = clipText.trim().replace(/^["'`]|["'`]$/g, "");
+                            let trimmed = clipText.trim().replace(/^["'`]|["'`]$/g, "");
+                            const docKeyMatch = trimmed.match(/[?&]documentkey=([a-fA-F0-9\s\r\n\t]+)/i) || trimmed.match(/DocumentKey=([a-fA-F0-9\s\r\n\t]+)/i);
+                            if (docKeyMatch) {
+                              trimmed = docKeyMatch[1].replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+                            } else {
+                              const hexOnly = trimmed.replace(/cufe\s*[:=\s]|cude\s*[:=\s]/gi, "").replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+                              if (hexOnly.length >= 64) {
+                                trimmed = hexOnly;
+                              } else {
+                                trimmed = trimmed.replace(/[\r\n\t\s]+/g, "");
+                              }
+                            }
                             setCufeInput(trimmed);
                             onShowToast?.({
                               type: "info",
-                              title: "CUFE Pegado",
-                              message: `Se insertaron ${trimmed.length} caracteres. Presiona 'Continuar con este CUFE'.`,
+                              title: "CUFE Pegado y Limpiado",
+                              message: `Se insertaron ${trimmed.length} caracteres (espacios y saltos eliminados). Presiona 'Continuar con este CUFE'.`,
                             });
                           }
                         } catch {
                           const fallbackText = window.prompt("Pega aquí el código CUFE o enlace DIAN:");
                           if (fallbackText) {
-                            const trimmed = fallbackText.trim().replace(/^["'`]|["'`]$/g, "");
+                            const trimmed = fallbackText.trim().replace(/^["'`]|["'`]$/g, "").replace(/[\r\n\t\s]+/g, "");
                             setCufeInput(trimmed);
                           }
                         }
@@ -1306,18 +1321,29 @@ export default function DianQRAssistantModal({
                     rows={3}
                     value={cufeInput}
                     onChange={(e) => {
-                      const clean = e.target.value.replace(/^["'`]|["'`]$/g, "");
+                      const clean = e.target.value.replace(/^["'`]|["'`]$/g, "").replace(/[\r\n\t]+/g, "");
                       setCufeInput(clean);
                     }}
                     onPaste={(e) => {
                       e.preventDefault();
                       const pasteData = e.clipboardData?.getData("text") || "";
-                      const cleaned = pasteData.trim().replace(/^["'`]|["'`]$/g, "");
+                      let cleaned = pasteData.trim().replace(/^["'`]|["'`]$/g, "");
+                      const docKeyMatch = cleaned.match(/[?&]documentkey=([a-fA-F0-9\s\r\n\t]+)/i) || cleaned.match(/DocumentKey=([a-fA-F0-9\s\r\n\t]+)/i);
+                      if (docKeyMatch) {
+                        cleaned = docKeyMatch[1].replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+                      } else {
+                        const hexOnly = cleaned.replace(/cufe\s*[:=\s]|cude\s*[:=\s]/gi, "").replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+                        if (hexOnly.length >= 64) {
+                          cleaned = hexOnly;
+                        } else {
+                          cleaned = cleaned.replace(/[\r\n\t\s]+/g, "");
+                        }
+                      }
                       setCufeInput(cleaned);
                       onShowToast?.({
                         type: "info",
-                        title: "CUFE Pegado",
-                        message: `Se insertaron ${cleaned.length} caracteres. Presiona 'Continuar con este CUFE'.`,
+                        title: "CUFE Pegado y Limpiado",
+                        message: `Se insertaron ${cleaned.length} caracteres (espacios y saltos eliminados). Presiona 'Continuar con este CUFE'.`,
                       });
                     }}
                     placeholder="Pega aquí el CUFE (96 caracteres hex) o enlace oficial DIAN (ej: db64d4cb84ba6c7715b199b1234fbbe650a7977ea3e4a7a64921e8e4d5917d1389daf94c0cd58093ab2c2ec6624465dd o https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=...)"
@@ -1484,6 +1510,22 @@ export default function DianQRAssistantModal({
 
               {/* Opciones de Obtención */}
               <div className="space-y-3">
+                {/* Botón Principal para Reintentar con el mismo código CUFE directamente */}
+                <button
+                  type="button"
+                  onClick={() => handleConsultDian(currentCufe, nitReceptor)}
+                  disabled={isConsulting || isProcessingPdf || !currentCufe}
+                  className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-xl font-bold text-xs shadow-md shadow-blue-950/30 transition flex items-center justify-center gap-2 btn-tactile cursor-pointer"
+                  title="Reintentar consulta desatendida en el portal oficial de la DIAN con el mismo CUFE y NIT"
+                >
+                  <RefreshCw className={`w-4 h-4 text-white ${isConsulting ? "animate-spin" : ""}`} />
+                  <span>
+                    {isConsulting
+                      ? (consultationStatus || "Consultando portal DIAN...")
+                      : "🔄 Reintentar Consulta Automática DIAN (Mismo CUFE)"}
+                  </span>
+                </button>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
@@ -1542,17 +1584,33 @@ export default function DianQRAssistantModal({
               {/* Flujo Asistido con Turnstile / Captcha */}
               {(showCaptchaGuide || consultationResult?.requires_user_captcha) && (
                 <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-xl space-y-3 animate-fade-in">
-                  <div className="flex items-start gap-2.5">
-                    <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                        El portal DIAN solicita verificación interactiva (Captcha)
-                      </h4>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">
-                        Sigue estos 3 sencillos pasos para obtener la factura oficial con contraseña:
-                      </p>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-amber-200/80 dark:border-amber-800/40">
+                    <div className="flex items-start gap-2.5">
+                      <AlertCircle className="w-5 h-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-xs font-bold text-amber-800 dark:text-amber-200">
+                          {consultationResult?.message || "El portal DIAN solicita verificación interactiva (Captcha)"}
+                        </h4>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
+                          Si hubo lentitud en la DIAN, puedes reintentar con el mismo CUFE directamente:
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleConsultDian(currentCufe, nitReceptor)}
+                      disabled={isConsulting}
+                      className="self-start sm:self-center shrink-0 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                      title="Volver a intentar la descarga automática en la DIAN con el mismo CUFE"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isConsulting ? "animate-spin" : ""}`} />
+                      <span>Reintentar ahora</span>
+                    </button>
                   </div>
+
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                    O si prefieres, sigue estos 3 sencillos pasos para obtener la factura oficial con contraseña:
+                  </p>
 
                   <div className="space-y-2 text-xs text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-950/60 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
